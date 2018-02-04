@@ -41,5 +41,7 @@ func (trans *Transmitter) MakeRequest(message string) {
 	fmt.Fprintf(trans.connection, message)
 
 	reply, _ := bufio.NewReader(trans.connection).ReadString('\n')
+
+	// TODO: Process response and append failed responses to some kind of list
 	fmt.Print("Message from server: "+ reply)
 }

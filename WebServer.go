@@ -7,12 +7,12 @@ import (
 	"regexp"
 	"./Commands"
 	"./transmitter"
+	"./UserSessions"
 )
 
 type WebServer struct {
 	transactionNumber int
-	pendingBuys []*commands.Command
-	pendingSells []*commands.Command
+	userSessions map[string]*usersessions.UserSession
 	transmitter *transmitter.Transmitter
 }
 
@@ -31,15 +31,31 @@ func makeHandler(fn func (http.ResponseWriter, *http.Request, string)) http.Hand
 
 }
 
+// Garuntees that the user exists in the session cache for managing operations
+func userLogin(id string) {
+	if webServer.userSessions[id] == nil {
+		createUserSession(id)
+	}
+}
+
+// Adds the specified user to the sessions list.
+func createUserSession(id string) {
+	webServer.userSessions[id] = usersessions.NewUserSession(id)
+}
+
 func addHandler(writer http.ResponseWriter, request *http.Request, title string) {
 	username := request.FormValue("username")
 	amount := request.FormValue("amount")
+	userLogin(username)
+
 	go webServer.transmitter.MakeRequest("ADD," + username + "," + amount)
 }
 
 func quoteHandler(writer http.ResponseWriter, request *http.Request, title string) {
 	username := request.FormValue("username")
 	stock := request.FormValue("stock")
+	userLogin(username)
+
 	go webServer.transmitter.MakeRequest("QUOTE," + username + "," + stock)
 }
 
@@ -48,22 +64,25 @@ func buyHandler(writer http.ResponseWriter, request *http.Request, title string)
 	stock := request.FormValue("stock")
 	amount := request.FormValue("amount")
 	command := commands.NewCommand("BUY", username, []string{stock, amount})
+	userLogin(username)
+
 	go webServer.transmitter.MakeRequest("BUY," + username + "," + stock + "," + amount)
 
 	// Append buy to pendingBuys list
-	webServer.pendingBuys = append(webServer.pendingBuys, command)
+	webServer.userSessions[username].PendingBuys = append(webServer.userSessions[username].PendingBuys, command)
 }
 
 func commitBuyHandler(writer http.ResponseWriter, request *http.Request, title string) {
 	username := request.FormValue("username")
+	userLogin(username)
 
-	if len(webServer.pendingBuys) == 0 {
+	if !webServer.userSessions[username].HasPendingBuys() {
 		// No pendings buys, return error
 		http.NotFound(writer, request)
 		return
 	}
 
-	command := webServer.pendingBuys[0]
+	command := webServer.userSessions[username].PendingBuys[0]
 
 	if command.HasTimeElapsed() {
 		// Time has elapsed on Buy, automatically cancel request
@@ -76,13 +95,13 @@ func commitBuyHandler(writer http.ResponseWriter, request *http.Request, title s
 	// TODO: Check if the command was successful on the trans server
 
 	// Pop last sell off the pending list.
-	webServer.pendingBuys  = webServer.pendingBuys[1:]
+	webServer.userSessions[username].PendingBuys  = webServer.userSessions[username].PendingBuys[1:]
 }
 
 func cancelBuyHandler(writer http.ResponseWriter, request *http.Request, title string) {
 	username := request.FormValue("username")
-
-	if len(webServer.pendingBuys) == 0 {
+	userLogin(username)
+	if !webServer.userSessions[username].HasPendingBuys() {
 		http.NotFound(writer, request)
 		return
 	}
@@ -90,7 +109,7 @@ func cancelBuyHandler(writer http.ResponseWriter, request *http.Request, title s
 	go webServer.transmitter.MakeRequest("CANCEL_BUY," + username)
 
 	// Pop last sell off the pending list.
-	webServer.pendingBuys = webServer.pendingBuys[1:]
+	webServer.userSessions[username].PendingBuys = webServer.userSessions[username].PendingBuys[1:]
 }
 
 func sellHandler(writer http.ResponseWriter, request *http.Request, title string) {
@@ -98,21 +117,24 @@ func sellHandler(writer http.ResponseWriter, request *http.Request, title string
 	stock := request.FormValue("stock")
 	amount := request.FormValue("amount")
 	command := commands.NewCommand("SELL", username, []string{stock, amount})
+
+	userLogin(username)
 	go webServer.transmitter.MakeRequest("SELL," + username + "," + stock + "," + amount)
 
-	webServer.pendingSells = append(webServer.pendingSells, command)
+	webServer.userSessions[username].PendingSells = append(webServer.userSessions[username].PendingSells, command)
 }
 
 func commitSellHandler(writer http.ResponseWriter, request *http.Request, title string) {
 	username := request.FormValue("username")
+	userLogin(username)
 
-	if len(webServer.pendingSells) == 0 {
+	if !webServer.userSessions[username].HasPendingSells() {
 		// No pendings buys, return error
 		http.NotFound(writer, request)
 		return
 	}
 
-	command := webServer.pendingSells[0]
+	command := webServer.userSessions[username].PendingSells[0]
 
 	if command.HasTimeElapsed() {
 		// Time has elapsed on Buy, automatically cancel request
@@ -125,13 +147,14 @@ func commitSellHandler(writer http.ResponseWriter, request *http.Request, title 
 	// TODO: Check if the command was successful on the trans server
 
 	// Pop last sell off the pending list.
-	webServer.pendingSells  = webServer.pendingSells[1:]
+	webServer.userSessions[username].PendingSells  = webServer.userSessions[username].PendingSells[1:]
 }
 
 func cancelSellHandler(writer http.ResponseWriter, request *http.Request, title string) {
 	username := request.FormValue("username")
+	userLogin(username)
 
-	if len(webServer.pendingSells) == 0 {
+	if !webServer.userSessions[username].HasPendingSells() {
 		http.NotFound(writer, request)
 		return
 	}
@@ -139,7 +162,7 @@ func cancelSellHandler(writer http.ResponseWriter, request *http.Request, title 
 	go webServer.transmitter.MakeRequest("CANCEL_SELL," + username)
 
 	// Pop last sell off the pending list.
-	webServer.pendingSells = webServer.pendingSells[1:]
+	webServer.userSessions[username].PendingSells = webServer.userSessions[username].PendingSells[1:]
 }
 
 
@@ -248,6 +271,8 @@ func main(){
 
 	// Connection to the Audit server
 	// TODO: add connection to Audit server
+	
+	webServer.userSessions = make(map[string]*usersessions.UserSession)
 
 	fmt.Printf("Successfully started server on address: %s, port #: %s\n", address, port)
 	http.ListenAndServe(serverAddress, nil)
