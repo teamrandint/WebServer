@@ -16,7 +16,7 @@ type WebServer struct {
 	transmitter *transmitter.Transmitter
 }
 
-var validPath = regexp.MustCompile("^/(add|quote|buy|commit_buy|cancel_buy|sell|commit_sell|cancel_sell|set_buy_amount|cancel_set_buy|set_buy_trigger|set_sell_amount|set_sell_trigger|cancel_set_sell|dumplog|display_summary)/$")
+var validPath = regexp.MustCompile("^/(ADD|QUOTE|BUY|COMMIT_BUY|CANCEL_BUY|SELL|COMMIT_SELL|CANCEL_SELL|SET_BUY_AMOUNT|CANCEL_SET_BUY|SET_BUY_TRIGGER|SET_SELL_AMOUNT|SET_SELL_TRIGGER|CANCEL_SET_SELL|DUMPLOG|DISPLAY_SUMMARY)/$")
 var webServer = &WebServer{}
 
 func makeHandler(fn func (http.ResponseWriter, *http.Request, string)) http.HandlerFunc {
@@ -28,7 +28,6 @@ func makeHandler(fn func (http.ResponseWriter, *http.Request, string)) http.Hand
 		}
 		fn(writer, request, m[1])
 	}
-
 }
 
 // Garuntees that the user exists in the session cache for managing operations
@@ -248,22 +247,22 @@ func main(){
 
 	serverAddress := string(address) + ":" + string(port)
 	http.HandleFunc("/", makeHandler(genericHandler))
-	http.HandleFunc("/add/", makeHandler(addHandler))
-	http.HandleFunc("/quote/", makeHandler(quoteHandler))
-	http.HandleFunc("/buy/", makeHandler(buyHandler))
-	http.HandleFunc("/commit_buy/", makeHandler(commitBuyHandler))
-	http.HandleFunc("/cancel_buy/", makeHandler(cancelBuyHandler))
-	http.HandleFunc("/sell/", makeHandler(sellHandler))
-	http.HandleFunc("/commit_sell/", makeHandler(commitSellHandler))
-	http.HandleFunc("/cancel_sell/", makeHandler(cancelSellHandler))
-	http.HandleFunc("/set_buy_amount/", makeHandler(setBuyAmountHandler))
-	http.HandleFunc("/cancel_set_buy/", makeHandler(cancelSetBuyHandler))
-	http.HandleFunc("/set_buy_trigger/", makeHandler(setBuyTriggerHandler))
-	http.HandleFunc("/set_sell_amount/", makeHandler(setSellAmountHandler))
-	http.HandleFunc("/set_sell_trigger/", makeHandler(setSellTriggerHandler))
-	http.HandleFunc("/cancel_set_sell/", makeHandler(cancelSetSellHandler))
-	http.HandleFunc("/dumplog/", makeHandler(dumplogHandler))
-	http.HandleFunc("/display_summary/", makeHandler(displaySummaryHandler))
+	http.HandleFunc("/ADD/", makeHandler(addHandler))
+	http.HandleFunc("/QUOTE/", makeHandler(quoteHandler))
+	http.HandleFunc("/BUY/", makeHandler(buyHandler))
+	http.HandleFunc("/COMMIT_BUY/", makeHandler(commitBuyHandler))
+	http.HandleFunc("/CANCEL_BUY/", makeHandler(cancelBuyHandler))
+	http.HandleFunc("/SELL/", makeHandler(sellHandler))
+	http.HandleFunc("/COMMIT_SELL/", makeHandler(commitSellHandler))
+	http.HandleFunc("/CANCEL_SELL/", makeHandler(cancelSellHandler))
+	http.HandleFunc("/SET_BUY_AMOUNT/", makeHandler(setBuyAmountHandler))
+	http.HandleFunc("/CANCEL_SET_BUY/", makeHandler(cancelSetBuyHandler))
+	http.HandleFunc("/SET_BUY_TRIGGER/", makeHandler(setBuyTriggerHandler))
+	http.HandleFunc("/SET_SELL_AMOUNT/", makeHandler(setSellAmountHandler))
+	http.HandleFunc("/SET_SELL_TRIGGER/", makeHandler(setSellTriggerHandler))
+	http.HandleFunc("/CANCEL_SET_SELL/", makeHandler(cancelSetSellHandler))
+	http.HandleFunc("/DUMPLOG/", makeHandler(dumplogHandler))
+	http.HandleFunc("/DISPLAY_SUMMARY/", makeHandler(displaySummaryHandler))
 
 	// Connection to the transaction server. 
 	// TODO make system args for setting transaction server
