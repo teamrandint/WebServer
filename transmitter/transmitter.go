@@ -36,7 +36,6 @@ func NewTransmitter(addr string, prt string) *Transmitter {
 }
 
 func (trans *Transmitter) MakeRequest(message string) {
-	fmt.Println("In transmit")
 	// Send through socket.
 	fmt.Fprintf(trans.connection, message)
 

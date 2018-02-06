@@ -43,6 +43,7 @@ func createUserSession(id string) {
 }
 
 func addHandler(writer http.ResponseWriter, request *http.Request, title string) {
+	webServer.transactionNumber++
 	username := request.FormValue("username")
 	amount := request.FormValue("amount")
 	userLogin(username)
@@ -51,6 +52,7 @@ func addHandler(writer http.ResponseWriter, request *http.Request, title string)
 }
 
 func quoteHandler(writer http.ResponseWriter, request *http.Request, title string) {
+	webServer.transactionNumber++
 	username := request.FormValue("username")
 	stock := request.FormValue("stock")
 	userLogin(username)
@@ -59,6 +61,7 @@ func quoteHandler(writer http.ResponseWriter, request *http.Request, title strin
 }
 
 func buyHandler(writer http.ResponseWriter, request *http.Request, title string) {
+	webServer.transactionNumber++
 	username := request.FormValue("username")
 	stock := request.FormValue("stock")
 	amount := request.FormValue("amount")
@@ -72,12 +75,14 @@ func buyHandler(writer http.ResponseWriter, request *http.Request, title string)
 }
 
 func commitBuyHandler(writer http.ResponseWriter, request *http.Request, title string) {
+	webServer.transactionNumber++
 	username := request.FormValue("username")
 	userLogin(username)
 
 	if !webServer.userSessions[username].HasPendingBuys() {
 		// No pendings buys, return error
 		http.NotFound(writer, request)
+		fmt.Printf("No buys to commit for user %s\n", username)
 		return
 	}
 
@@ -87,6 +92,7 @@ func commitBuyHandler(writer http.ResponseWriter, request *http.Request, title s
 		// Time has elapsed on Buy, automatically cancel request
 		go webServer.transmitter.MakeRequest("CANCEL_BUY," + username)
 		http.NotFound(writer, request)
+		fmt.Printf("Time has elapsed on last buy for user %s\n", username)
 	} else {
 		go webServer.transmitter.MakeRequest("COMMIT_BUY," + username)
 	}
@@ -98,10 +104,12 @@ func commitBuyHandler(writer http.ResponseWriter, request *http.Request, title s
 }
 
 func cancelBuyHandler(writer http.ResponseWriter, request *http.Request, title string) {
+	webServer.transactionNumber++
 	username := request.FormValue("username")
 	userLogin(username)
 	if !webServer.userSessions[username].HasPendingBuys() {
 		http.NotFound(writer, request)
+		fmt.Printf("No buys to cancel for user %s\n", username)
 		return
 	}
 
@@ -112,6 +120,7 @@ func cancelBuyHandler(writer http.ResponseWriter, request *http.Request, title s
 }
 
 func sellHandler(writer http.ResponseWriter, request *http.Request, title string) {
+	webServer.transactionNumber++
 	username := request.FormValue("username")
 	stock := request.FormValue("stock")
 	amount := request.FormValue("amount")
@@ -124,12 +133,14 @@ func sellHandler(writer http.ResponseWriter, request *http.Request, title string
 }
 
 func commitSellHandler(writer http.ResponseWriter, request *http.Request, title string) {
+	webServer.transactionNumber++
 	username := request.FormValue("username")
 	userLogin(username)
 
 	if !webServer.userSessions[username].HasPendingSells() {
 		// No pendings buys, return error
 		http.NotFound(writer, request)
+		fmt.Printf("No sells to commit for user %s\n", username)
 		return
 	}
 
@@ -139,6 +150,7 @@ func commitSellHandler(writer http.ResponseWriter, request *http.Request, title 
 		// Time has elapsed on Buy, automatically cancel request
 		go webServer.transmitter.MakeRequest("CANCEL_SELL," + username)
 		http.NotFound(writer, request)
+		fmt.Printf("Time has elapsed on last sell for user %s\n", username)
 	} else {
 		go webServer.transmitter.MakeRequest("COMMIT_SELL," + username)
 	}
@@ -150,11 +162,13 @@ func commitSellHandler(writer http.ResponseWriter, request *http.Request, title 
 }
 
 func cancelSellHandler(writer http.ResponseWriter, request *http.Request, title string) {
+	webServer.transactionNumber++
 	username := request.FormValue("username")
 	userLogin(username)
 
 	if !webServer.userSessions[username].HasPendingSells() {
 		http.NotFound(writer, request)
+		fmt.Printf("No sells to cancel for user %s\n", username)
 		return
 	}
 
@@ -166,6 +180,7 @@ func cancelSellHandler(writer http.ResponseWriter, request *http.Request, title 
 
 
 func setBuyAmountHandler(writer http.ResponseWriter, request *http.Request, title string) {
+	webServer.transactionNumber++
 	username := request.FormValue("username")
 	stock := request.FormValue("stock")
 	amount := request.FormValue("amount")
@@ -174,6 +189,7 @@ func setBuyAmountHandler(writer http.ResponseWriter, request *http.Request, titl
 }
 
 func cancelSetBuyHandler(writer http.ResponseWriter, request *http.Request, title string) {
+	webServer.transactionNumber++
 	username := request.FormValue("username")
 	stock := request.FormValue("stock")
 
@@ -181,6 +197,7 @@ func cancelSetBuyHandler(writer http.ResponseWriter, request *http.Request, titl
 }
 
 func setBuyTriggerHandler(writer http.ResponseWriter, request *http.Request, title string) {
+	webServer.transactionNumber++
 	username := request.FormValue("username")
 	stock := request.FormValue("stock")
 	amount := request.FormValue("amount")
@@ -189,6 +206,7 @@ func setBuyTriggerHandler(writer http.ResponseWriter, request *http.Request, tit
 }
 
 func setSellAmountHandler(writer http.ResponseWriter, request *http.Request, title string) {
+	webServer.transactionNumber++
 	username := request.FormValue("username")
 	stock := request.FormValue("stock")
 	amount := request.FormValue("amount")
@@ -198,6 +216,7 @@ func setSellAmountHandler(writer http.ResponseWriter, request *http.Request, tit
 }
 
 func setSellTriggerHandler(writer http.ResponseWriter, request *http.Request, title string) {
+	webServer.transactionNumber++
 	username := request.FormValue("username")
 	stock := request.FormValue("stock")
 	amount := request.FormValue("amount")
@@ -206,6 +225,7 @@ func setSellTriggerHandler(writer http.ResponseWriter, request *http.Request, ti
 }
 
 func cancelSetSellHandler(writer http.ResponseWriter, request *http.Request, title string) {
+	webServer.transactionNumber++
 	username := request.FormValue("username")
 	stock := request.FormValue("stock")
 
@@ -213,6 +233,7 @@ func cancelSetSellHandler(writer http.ResponseWriter, request *http.Request, tit
 }
 
 func dumplogHandler(writer http.ResponseWriter, request *http.Request, title string) {
+	webServer.transactionNumber++
 	username := request.FormValue("username")
 	filename := request.FormValue("filename")
 	message := ""
@@ -227,6 +248,7 @@ func dumplogHandler(writer http.ResponseWriter, request *http.Request, title str
 }
 
 func displaySummaryHandler(writer http.ResponseWriter, request *http.Request, title string) {
+	webServer.transactionNumber++
 	username := request.FormValue("username")
 
 	go webServer.transmitter.MakeRequest("DISPLAY_SUMMARY," + username)
