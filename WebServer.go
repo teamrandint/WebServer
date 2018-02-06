@@ -46,7 +46,7 @@ func addHandler(writer http.ResponseWriter, request *http.Request, title string)
 	webServer.transactionNumber++
 	username := request.FormValue("username")
 	amount := request.FormValue("amount")
-	// TODO : generic login 
+	// TODO : generic login once for each user.
 	userLogin(username)
 
 	resp := webServer.transmitter.MakeRequest("ADD," + username + "," + amount)
@@ -326,7 +326,7 @@ func genericHandler(writer http.ResponseWriter, request *http.Request, title str
 
 func main(){
 	if (len(os.Args) < 3) {
-		//fmt.Println("Please enter a valid server address and port number.")
+		fmt.Println("Please enter a valid server address and port number.")
 		return
 	}
 
@@ -361,6 +361,6 @@ func main(){
 	
 	webServer.userSessions = make(map[string]*usersessions.UserSession)
 
-	//fmt.Printf("Successfully started server on address: %s, port #: %s\n", address, port)
+	fmt.Printf("Successfully started server on address: %s, port #: %s\n", address, port)
 	http.ListenAndServe(serverAddress, nil)
 }

@@ -42,6 +42,22 @@ func makeHttpRequest(command string) {
 		fmt.Println("REQUEST ERROR OCCURED!!")
 	} else {
 		fmt.Println(resp.StatusCode)
+		if resp.StatusCode == 400 {
+			fmt.Println(endpointUrl)
+		}
+		// Always close the response-body, even if content not required
+		defer resp.Body.Close()
+	}
+}
+
+// Special dumplog request method for when end of requests is reached.
+func dumplog(filename string) {
+	endpointUrl := hostName + "DUMPLOG/"
+	resp, err := http.PostForm(endpointUrl, url.Values{"filename":{filename}}) 
+	if err != nil {
+		fmt.Println("REQUEST ERROR OCCURED!!")
+	} else {
+		fmt.Println(resp.StatusCode)
 		if resp.StatusCode == 404 {
 			fmt.Println(endpointUrl)
 		}
@@ -55,8 +71,11 @@ func makeUserRequests(commands []string) {
 	channel <- "done"
 }
 
-func processFile(address string, port string, filename string) {
+// Processes the specified input file and makes async requests for each user.
+// outputs the filename of the dumpfile to be written at the end as the final command.
+func processFile(address string, port string, filename string) string {
 	workloadFile, err := os.Open(filename)
+	var outfileName string
 	if err != nil {
 		log.Fatal(err)
 	} 
@@ -74,10 +93,10 @@ func processFile(address string, port string, filename string) {
 
 		// Id contains a space in the file, remove it
 		userId = strings.Replace(params[1], " ", "", -1)
-		// user id is blank for dumplog
+
+		// user id is the filename for dumplog commands
 		if userId[0] == '.' {
-			fmt.Println("dumplog command found")
-			// Dumplog is the last command sent, so send it specially
+			outfileName = strings.Replace(params[1], " ", "", -1)
 		} else {
 			fullCommand := re.ReplaceAllString(line, "")
 			userCommands[userId] = append(userCommands[userId], fullCommand)
@@ -93,6 +112,8 @@ func processFile(address string, port string, filename string) {
 		users++
 		makeUserRequests(v)
 	}
+
+	return outfileName
 }
 
 func listenForCompleted() {
@@ -100,7 +121,7 @@ func listenForCompleted() {
 		status := <- channel
 		fmt.Println(status)
 	}
-	fmt.Println("finished program")
+	fmt.Println("finished users requests")
 }
 
 func main() {
@@ -113,6 +134,7 @@ func main() {
 	port := os.Args[2]
 	filename := os.Args[3]
 	hostName = "http://" + address + ":" + port + "/"
-	processFile(address, port, filename)
+	outFileName := processFile(address, port, filename)
 	listenForCompleted()
+	dumplog(outFileName)
 }
