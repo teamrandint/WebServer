@@ -35,12 +35,13 @@ func NewTransmitter(addr string, prt string) *Transmitter {
 	return transmitter
 }
 
-func (trans *Transmitter) MakeRequest(message string) {
+func (trans *Transmitter) MakeRequest(message string) string {
 	// Send through socket.
 	fmt.Fprintf(trans.connection, message)
-
 	reply, _ := bufio.NewReader(trans.connection).ReadString('\n')
 
 	// TODO: Process response and append failed responses to some kind of list
-	fmt.Print("Message from server: "+ reply)
+	// fmt.Print("Message from server: "+ reply)
+
+	return reply
 }

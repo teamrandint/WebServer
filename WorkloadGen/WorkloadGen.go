@@ -11,7 +11,7 @@ import (
 	"net/url"
 )
 
-var channel = make(chan string, 10)
+var channel = make(chan string, 1000)
 var users = 0
 var hostName = ""
 

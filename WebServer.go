@@ -46,9 +46,14 @@ func addHandler(writer http.ResponseWriter, request *http.Request, title string)
 	webServer.transactionNumber++
 	username := request.FormValue("username")
 	amount := request.FormValue("amount")
+	// TODO : generic login 
 	userLogin(username)
 
-	go webServer.transmitter.MakeRequest("ADD," + username + "," + amount)
+	resp := webServer.transmitter.MakeRequest("ADD," + username + "," + amount)
+
+	if resp == "-1" {
+		http.Error(writer, "Invalid Request", 400)
+	}
 }
 
 func quoteHandler(writer http.ResponseWriter, request *http.Request, title string) {
@@ -57,7 +62,11 @@ func quoteHandler(writer http.ResponseWriter, request *http.Request, title strin
 	stock := request.FormValue("stock")
 	userLogin(username)
 
-	go webServer.transmitter.MakeRequest("QUOTE," + username + "," + stock)
+	resp := webServer.transmitter.MakeRequest("QUOTE," + username + "," + stock)
+
+	if resp == "-1" {
+		http.Error(writer, "Invalid Request", 400)
+	}
 }
 
 func buyHandler(writer http.ResponseWriter, request *http.Request, title string) {
@@ -68,7 +77,12 @@ func buyHandler(writer http.ResponseWriter, request *http.Request, title string)
 	command := commands.NewCommand("BUY", username, []string{stock, amount})
 	userLogin(username)
 
-	go webServer.transmitter.MakeRequest("BUY," + username + "," + stock + "," + amount)
+	resp := webServer.transmitter.MakeRequest("BUY," + username + "," + stock + "," + amount)
+
+	if resp == "-1" {
+		http.Error(writer, "Invalid Request", 400)
+		return
+	}
 
 	// Append buy to pendingBuys list
 	webServer.userSessions[username].PendingBuys = append(webServer.userSessions[username].PendingBuys, command)
@@ -81,24 +95,26 @@ func commitBuyHandler(writer http.ResponseWriter, request *http.Request, title s
 
 	if !webServer.userSessions[username].HasPendingBuys() {
 		// No pendings buys, return error
-		http.NotFound(writer, request)
-		fmt.Printf("No buys to commit for user %s\n", username)
+		http.Error(writer, "Invalid request", 400)
+		//fmt.Printf("No buys to commit for user %s\n", username)
 		return
 	}
 
 	command := webServer.userSessions[username].PendingBuys[0]
-
+	var resp string
 	if command.HasTimeElapsed() {
 		// Time has elapsed on Buy, automatically cancel request
-		go webServer.transmitter.MakeRequest("CANCEL_BUY," + username)
-		http.NotFound(writer, request)
-		fmt.Printf("Time has elapsed on last buy for user %s\n", username)
+		resp = webServer.transmitter.MakeRequest("CANCEL_BUY," + username)
+		http.Error(writer, "Invalid request", 400)
+		//fmt.Printf("Time has elapsed on last buy for user %s\n", username)
 	} else {
-		go webServer.transmitter.MakeRequest("COMMIT_BUY," + username)
+		resp = webServer.transmitter.MakeRequest("COMMIT_BUY," + username)
 	}
 
-	// TODO: Check if the command was successful on the trans server
-
+	if resp == "-1" {
+		http.Error(writer, "Invalid Request", 400)
+		return
+	}
 	// Pop last sell off the pending list.
 	webServer.userSessions[username].PendingBuys  = webServer.userSessions[username].PendingBuys[1:]
 }
@@ -108,13 +124,17 @@ func cancelBuyHandler(writer http.ResponseWriter, request *http.Request, title s
 	username := request.FormValue("username")
 	userLogin(username)
 	if !webServer.userSessions[username].HasPendingBuys() {
-		http.NotFound(writer, request)
-		fmt.Printf("No buys to cancel for user %s\n", username)
+		http.Error(writer, "Invalid request", 400)
+		//fmt.Printf("No buys to cancel for user %s\n", username)
 		return
 	}
 
-	go webServer.transmitter.MakeRequest("CANCEL_BUY," + username)
+	resp := webServer.transmitter.MakeRequest("CANCEL_BUY," + username)
 
+	if resp == "-1" {
+		http.Error(writer, "Invalid Request", 400)
+		return
+	}
 	// Pop last sell off the pending list.
 	webServer.userSessions[username].PendingBuys = webServer.userSessions[username].PendingBuys[1:]
 }
@@ -127,8 +147,12 @@ func sellHandler(writer http.ResponseWriter, request *http.Request, title string
 	command := commands.NewCommand("SELL", username, []string{stock, amount})
 
 	userLogin(username)
-	go webServer.transmitter.MakeRequest("SELL," + username + "," + stock + "," + amount)
+	resp := webServer.transmitter.MakeRequest("SELL," + username + "," + stock + "," + amount)
 
+	if resp == "-1" {
+		http.Error(writer, "Invalid Request", 400)
+		return
+	}
 	webServer.userSessions[username].PendingSells = append(webServer.userSessions[username].PendingSells, command)
 }
 
@@ -140,23 +164,26 @@ func commitSellHandler(writer http.ResponseWriter, request *http.Request, title 
 	if !webServer.userSessions[username].HasPendingSells() {
 		// No pendings buys, return error
 		http.NotFound(writer, request)
-		fmt.Printf("No sells to commit for user %s\n", username)
+		//fmt.Printf("No sells to commit for user %s\n", username)
 		return
 	}
 
 	command := webServer.userSessions[username].PendingSells[0]
+	var resp string
 
 	if command.HasTimeElapsed() {
 		// Time has elapsed on Buy, automatically cancel request
-		go webServer.transmitter.MakeRequest("CANCEL_SELL," + username)
+		resp = webServer.transmitter.MakeRequest("CANCEL_SELL," + username)
 		http.NotFound(writer, request)
-		fmt.Printf("Time has elapsed on last sell for user %s\n", username)
+		//fmt.Printf("Time has elapsed on last sell for user %s\n", username)
 	} else {
-		go webServer.transmitter.MakeRequest("COMMIT_SELL," + username)
+		resp = webServer.transmitter.MakeRequest("COMMIT_SELL," + username)
 	}
 
-	// TODO: Check if the command was successful on the trans server
-
+	if resp == "-1" {
+		http.Error(writer, "Invalid Request", 400)
+		return
+	}
 	// Pop last sell off the pending list.
 	webServer.userSessions[username].PendingSells  = webServer.userSessions[username].PendingSells[1:]
 }
@@ -168,12 +195,16 @@ func cancelSellHandler(writer http.ResponseWriter, request *http.Request, title 
 
 	if !webServer.userSessions[username].HasPendingSells() {
 		http.NotFound(writer, request)
-		fmt.Printf("No sells to cancel for user %s\n", username)
+		//fmt.Printf("No sells to cancel for user %s\n", username)
 		return
 	}
 
-	go webServer.transmitter.MakeRequest("CANCEL_SELL," + username)
+	resp := webServer.transmitter.MakeRequest("CANCEL_SELL," + username)
 
+	if resp == "-1" {
+		http.Error(writer, "Invalid Request", 400)
+		return
+	}
 	// Pop last sell off the pending list.
 	webServer.userSessions[username].PendingSells = webServer.userSessions[username].PendingSells[1:]
 }
@@ -185,7 +216,12 @@ func setBuyAmountHandler(writer http.ResponseWriter, request *http.Request, titl
 	stock := request.FormValue("stock")
 	amount := request.FormValue("amount")
 
-	go webServer.transmitter.MakeRequest("SET_BUY_AMOUNT," + username + "," + stock + "," + amount)
+	resp := webServer.transmitter.MakeRequest("SET_BUY_AMOUNT," + username + "," + stock + "," + amount)
+
+	if resp == "-1" {
+		http.Error(writer, "Invalid Request", 400)
+		return
+	}
 }
 
 func cancelSetBuyHandler(writer http.ResponseWriter, request *http.Request, title string) {
@@ -193,7 +229,12 @@ func cancelSetBuyHandler(writer http.ResponseWriter, request *http.Request, titl
 	username := request.FormValue("username")
 	stock := request.FormValue("stock")
 
-	go webServer.transmitter.MakeRequest("CANCEL_SET_BUY," + username + "," + stock)
+	resp := webServer.transmitter.MakeRequest("CANCEL_SET_BUY," + username + "," + stock)
+
+	if resp == "-1" {
+		http.Error(writer, "Invalid Request", 400)
+		return
+	}
 }
 
 func setBuyTriggerHandler(writer http.ResponseWriter, request *http.Request, title string) {
@@ -202,7 +243,12 @@ func setBuyTriggerHandler(writer http.ResponseWriter, request *http.Request, tit
 	stock := request.FormValue("stock")
 	amount := request.FormValue("amount")
 
-	go webServer.transmitter.MakeRequest("SET_BUY_TRIGGER," + username + "," + stock + "," + amount)
+	resp := webServer.transmitter.MakeRequest("SET_BUY_TRIGGER," + username + "," + stock + "," + amount)
+
+	if resp == "-1" {
+		http.Error(writer, "Invalid Request", 400)
+		return
+	}
 }
 
 func setSellAmountHandler(writer http.ResponseWriter, request *http.Request, title string) {
@@ -211,8 +257,12 @@ func setSellAmountHandler(writer http.ResponseWriter, request *http.Request, tit
 	stock := request.FormValue("stock")
 	amount := request.FormValue("amount")
 
-	go webServer.transmitter.MakeRequest("SET_SELL_AMOUNT," + username + "," + stock + "," + amount)
+	resp := webServer.transmitter.MakeRequest("SET_SELL_AMOUNT," + username + "," + stock + "," + amount)
 
+	if resp == "-1" {
+		http.Error(writer, "Invalid Request", 400)
+		return
+	}
 }
 
 func setSellTriggerHandler(writer http.ResponseWriter, request *http.Request, title string) {
@@ -221,7 +271,11 @@ func setSellTriggerHandler(writer http.ResponseWriter, request *http.Request, ti
 	stock := request.FormValue("stock")
 	amount := request.FormValue("amount")
 
-	go webServer.transmitter.MakeRequest("SET_SELL_TRIGGER," + username + "," + stock + "," + amount)
+	resp := webServer.transmitter.MakeRequest("SET_SELL_TRIGGER," + username + "," + stock + "," + amount)
+	if resp == "-1" {
+		http.Error(writer, "Invalid Request", 400)
+		return
+	}
 }
 
 func cancelSetSellHandler(writer http.ResponseWriter, request *http.Request, title string) {
@@ -229,7 +283,11 @@ func cancelSetSellHandler(writer http.ResponseWriter, request *http.Request, tit
 	username := request.FormValue("username")
 	stock := request.FormValue("stock")
 
-	go webServer.transmitter.MakeRequest("CANCEL_SET_SELL," + username + "," + stock)
+	resp := webServer.transmitter.MakeRequest("CANCEL_SET_SELL," + username + "," + stock)
+	if resp == "-1" {
+		http.Error(writer, "Invalid Request", 400)
+		return
+	}
 }
 
 func dumplogHandler(writer http.ResponseWriter, request *http.Request, title string) {
@@ -244,14 +302,22 @@ func dumplogHandler(writer http.ResponseWriter, request *http.Request, title str
 		message = "DUMPLOG," + username + "," + filename
 	}
 
-	go webServer.transmitter.MakeRequest(message)
+	resp := webServer.transmitter.MakeRequest(message)
+	if resp == "-1" {
+		http.Error(writer, "Invalid Request", 400)
+		return
+	}
 }
 
 func displaySummaryHandler(writer http.ResponseWriter, request *http.Request, title string) {
 	webServer.transactionNumber++
 	username := request.FormValue("username")
 
-	go webServer.transmitter.MakeRequest("DISPLAY_SUMMARY," + username)
+	resp := webServer.transmitter.MakeRequest("DISPLAY_SUMMARY," + username)
+	if resp == "-1" {
+		http.Error(writer, "Invalid Request", 400)
+		return
+	}
 }
 
 func genericHandler(writer http.ResponseWriter, request *http.Request, title string) {
@@ -260,7 +326,7 @@ func genericHandler(writer http.ResponseWriter, request *http.Request, title str
 
 func main(){
 	if (len(os.Args) < 3) {
-		fmt.Println("Please enter a valid server address and port number.")
+		//fmt.Println("Please enter a valid server address and port number.")
 		return
 	}
 
@@ -295,6 +361,6 @@ func main(){
 	
 	webServer.userSessions = make(map[string]*usersessions.UserSession)
 
-	fmt.Printf("Successfully started server on address: %s, port #: %s\n", address, port)
+	//fmt.Printf("Successfully started server on address: %s, port #: %s\n", address, port)
 	http.ListenAndServe(serverAddress, nil)
 }
