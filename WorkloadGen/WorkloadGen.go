@@ -41,9 +41,9 @@ func makeHttpRequest(command string) {
 	if err != nil {
 		fmt.Println("REQUEST ERROR OCCURED!!")
 	} else {
-		fmt.Println(resp.StatusCode)
+		// fmt.Println(resp.StatusCode)
 		if resp.StatusCode == 400 {
-			fmt.Println(endpointUrl)
+			// fmt.Println(endpointUrl)
 		}
 		// Always close the response-body, even if content not required
 		defer resp.Body.Close()
@@ -62,6 +62,8 @@ func dumplog(filename string) {
 			fmt.Println(endpointUrl)
 		}
 	}
+	// Close connection
+	defer resp.Body.Close()
 }
 
 func makeUserRequests(commands []string) {
