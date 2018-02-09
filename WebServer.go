@@ -186,7 +186,6 @@ func (webServer *WebServer) sellHandler(writer http.ResponseWriter, request *htt
 
 	webServer.userLogin(username)
 	resp := webServer.transmitter.MakeRequest("SELL," + username + "," + stock + "," + amount)
-
 	if resp == "-1" {
 		http.Error(writer, "Invalid Request", 400)
 		go webServer.logger.SystemError(webServer.Name, webServer.transactionNumber, "SELL", 
@@ -458,7 +457,7 @@ func main(){
 	http.HandleFunc("/CANCEL_SET_SELL/", webServer.makeHandler(webServer.cancelSetSellHandler))
 	http.HandleFunc("/DUMPLOG/", webServer.makeHandler(webServer.dumplogHandler))
 	http.HandleFunc("/DISPLAY_SUMMARY/", webServer.makeHandler(webServer.displaySummaryHandler))
-	
+
 	fmt.Printf("Successfully started server on address: %s, port #: %s\n", address, port)
 	http.ListenAndServe(serverAddress, nil)
 }
