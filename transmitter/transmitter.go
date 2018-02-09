@@ -36,9 +36,17 @@ func NewTransmitter(addr string, prt string) *Transmitter {
 }
 
 func (trans *Transmitter) MakeRequest(message string) string {
-	// Send through socket.
+	conn, err := net.Dial("tcp", trans.address + ":" + trans.port)
+
+	if err != nil {
+		// Error in connection
+		log.Fatal(err)
+	} else {
+		trans.connection = conn
+	}
+
 	fmt.Fprintf(trans.connection, message)
 	reply, _ := bufio.NewReader(trans.connection).ReadString('\n')
-
+	trans.connection.Close()
 	return reply
 }
