@@ -99,7 +99,7 @@ func (al AuditLogger) SystemError(server string, transNum int, command string, u
 		params["username"] = user.(string)
 	}
 	if stock != nil {
-		params["stocksymbol"] = stock.(string)
+		params["stockSymbol"] = stock.(string)
 	}
 	if filename != nil {
 		params["filename"] = filename.(string)
@@ -108,7 +108,7 @@ func (al AuditLogger) SystemError(server string, transNum int, command string, u
 		params["funds"] = funds.(string)
 	}
 	if errorMsg != nil {
-		params["errormessage"] = errorMsg.(string)
+		params["errorMessage"] = errorMsg.(string)
 	}
 	al.SendLog("/errorEvent", params)
 }
