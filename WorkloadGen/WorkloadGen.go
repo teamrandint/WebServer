@@ -115,7 +115,7 @@ func processFile(address string, port string, filename string) string {
 		makeUserRequests(v)
 	}
 	fmt.Print(outfileName)
-	return "gggg" //outfileName
+	return outfileName
 }
 
 func listenForCompleted() {
