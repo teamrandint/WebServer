@@ -44,12 +44,12 @@ func (al AuditLogger) DumpLog(filename string, username interface{}) {
 	al.SendLog("/dumpLog", params)
 }
 
-func (al AuditLogger) UserCommand(server string, transNum int, command string, 
+func (al AuditLogger) UserCommand(server string, transNum int, command string,
 	username interface{}, stock interface{}, filename interface{}, funds interface{}) {
 	params := map[string]string{
-		"server":			server,
-		"transactionNum": 	strconv.Itoa(transNum),
-		"command":			command,
+		"server":         server,
+		"transactionNum": strconv.Itoa(transNum),
+		"command":        command,
 	}
 	if username != nil {
 		params["username"] = username.(string)

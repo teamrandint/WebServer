@@ -1,24 +1,24 @@
 package main
 
 import (
-	"fmt"
 	"bufio"
+	"fmt"
 	"log"
-	"os"
-	"strings"
-	"regexp"
 	"net/http"
 	"net/url"
+	"os"
+	"regexp"
+	"strings"
 )
 
 var channel = make(chan string, 1000)
 var users = 0
 var hostName = ""
 
-func makeHttpRequest(command string) {
+func makeHTTPRequest(command string) {
 	tokens := strings.Split(command, ",")
 	cmdType := strings.Replace(tokens[0], " ", "", -1)
-	userId := strings.Replace(tokens[1], " ", "", -1)
+	userID := strings.Replace(tokens[1], " ", "", -1)
 	stock := ""
 	amount := ""
 
@@ -35,15 +35,15 @@ func makeHttpRequest(command string) {
 		amount = strings.Replace(tokens[3], " ", "", -1)
 	}
 
-	endpointUrl := hostName + cmdType + "/"
-	resp, err := http.PostForm(endpointUrl, url.Values{"username":{userId}, "stock":{stock}, "amount":{amount}})
+	endpointURL := hostName + cmdType + "/"
+	resp, err := http.PostForm(endpointURL, url.Values{"username": {userID}, "stock": {stock}, "amount": {amount}})
 
 	if err != nil {
 		fmt.Println("REQUEST ERROR OCCURED!!")
 	} else {
 		// fmt.Println(resp.StatusCode)
 		if resp.StatusCode == 400 {
-			// fmt.Println(endpointUrl)
+			// fmt.Println(endpointURL)
 		}
 		// Always close the response-body, even if content not required
 		defer resp.Body.Close()
@@ -52,14 +52,14 @@ func makeHttpRequest(command string) {
 
 // Special dumplog request method for when end of requests is reached.
 func dumplog(filename string) {
-	endpointUrl := hostName + "DUMPLOG/"
-	resp, err := http.PostForm(endpointUrl, url.Values{"filename":{filename}}) 
+	endpointURL := hostName + "DUMPLOG/"
+	resp, err := http.PostForm(endpointURL, url.Values{"filename": {filename}})
 	if err != nil {
 		fmt.Println("REQUEST ERROR OCCURED!!")
 	} else {
 		fmt.Println(resp.StatusCode)
 		if resp.StatusCode == 404 {
-			fmt.Println(endpointUrl)
+			fmt.Println(endpointURL)
 		}
 	}
 	// Close connection
@@ -68,7 +68,7 @@ func dumplog(filename string) {
 
 func makeUserRequests(commands []string) {
 	for _, command := range commands {
-		makeHttpRequest(command)
+		makeHTTPRequest(command)
 	}
 	channel <- "done"
 }
@@ -80,13 +80,13 @@ func processFile(address string, port string, filename string) string {
 	var outfileName string
 	if err != nil {
 		log.Fatal(err)
-	} 
+	}
 	defer workloadFile.Close()
 
 	scanner := bufio.NewScanner(workloadFile)
 
 	var userCommands = make(map[string][]string)
-	userId := ""
+	userID := ""
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -94,14 +94,14 @@ func processFile(address string, port string, filename string) string {
 		re := regexp.MustCompile("^\\[(\\d)+\\]\\s")
 
 		// Id contains a space in the file, remove it
-		userId = strings.Replace(params[1], " ", "", -1)
+		userID = strings.Replace(params[1], " ", "", -1)
 
 		// user id is the filename for dumplog commands
-		if userId[0] == '.' {
+		if userID[0] == '.' {
 			outfileName = strings.Replace(params[1], " ", "", -1)
 		} else {
 			fullCommand := re.ReplaceAllString(line, "")
-			userCommands[userId] = append(userCommands[userId], fullCommand)
+			userCommands[userID] = append(userCommands[userID], fullCommand)
 		}
 	}
 
@@ -114,13 +114,13 @@ func processFile(address string, port string, filename string) string {
 		users++
 		makeUserRequests(v)
 	}
-
-	return outfileName
+	fmt.Print(outfileName)
+	return "gggg" //outfileName
 }
 
 func listenForCompleted() {
 	for i := 0; i < users; i++ {
-		status := <- channel
+		status := <-channel
 		fmt.Println(status)
 	}
 	fmt.Println("finished users requests")
