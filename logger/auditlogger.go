@@ -137,7 +137,7 @@ func (al AuditLogger) QuoteServer(server string, transactionNum int,
 		"stockSymbol":     stock,
 		"username":        user,
 		"quoteServerTime": strconv.FormatUint(qsTime, 10),
-		"cryptoKey":       key,
+		"cryptokey":       key,
 	}
 	al.SendLog("/quoteServer", params)
 }
