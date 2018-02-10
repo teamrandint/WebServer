@@ -1,7 +1,7 @@
 package usersessions
 
 import (
-	"../Commands"
+	"seng468/WebServer/Commands"
 )
 
 type UserSessions interface {
@@ -11,8 +11,8 @@ type UserSessions interface {
 }
 
 type UserSession struct {
-	userId string
-	PendingBuys []*commands.Command
+	userId       string
+	PendingBuys  []*commands.Command
 	PendingSells []*commands.Command
 }
 
