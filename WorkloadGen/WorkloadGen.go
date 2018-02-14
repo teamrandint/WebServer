@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"strings"
 	"sync"
 	"time"
 )
@@ -20,6 +21,11 @@ func main() {
 	users := splitUsersFromFile(workloadFile)
 	fmt.Printf("Found %d users...\n", len(users))
 
+	runRequests(serverAddr, users)
+	fmt.Printf("Done!\n")
+}
+
+func runRequests(serverAddr string, users map[string][]string) {
 	var wg sync.WaitGroup
 	for userName, commands := range users {
 		fmt.Printf("Running user %v's commands...\n", userName)
@@ -27,19 +33,18 @@ func main() {
 		wg.Add(1)
 		go func(commands []string) {
 			for _, command := range commands {
-				// username, stock, amount, filename
 				endpoint, values := parseCommand(command)
-				time.Sleep(time.Second) // ADJUST THIS TO CHANGE DELAY
-				http.PostForm(serverAddr+endpoint, values)
+				time.Sleep(time.Second)                    // ADJUST THIS TO CHANGE DELAY
+				http.PostForm(serverAddr+endpoint, values) // resp, err := ...
 			}
 
 			wg.Done()
 		}(commands)
 	}
 
+	// Wait for commands, then manually post the final dumplog
 	wg.Wait()
 	http.PostForm(serverAddr+"/DUMPLOG/", url.Values{"filename": {"./output.xml"}})
-	fmt.Printf("Done!\n")
 }
 
 func splitUsersFromFile(filename string) map[string][]string {
@@ -48,7 +53,7 @@ func splitUsersFromFile(filename string) map[string][]string {
 		panic(err)
 	}
 
-	//https://regex101.com/r/O6xaTp/3
+	// https://regex101.com/r/O6xaTp/3
 	re := regexp.MustCompile(`\[\d+\] ((?P<endpoint>\w+),(?P<user>\w+)(,\w+\.*\d*)*)`)
 	outputCommands := make(map[string][]string)
 
@@ -70,5 +75,31 @@ func splitUsersFromFile(filename string) map[string][]string {
 
 // Parse a single line command into the corresponding endpoint and values
 func parseCommand(cmd string) (endpoint string, v url.Values) {
-	return "", url.Values{"test": {"test"}}
+	subcmd := strings.Split(cmd, ",")
+	endpoint = subcmd[0]
+	// username, stock, amount, filename
+	switch endpoint {
+	case "ADD":
+		v = url.Values{
+			"username": {subcmd[1]},
+			"amount":   {subcmd[2]},
+		}
+	case "QUOTE", "CANCEL_SET_BUY", "CANCEL_SET_SELL":
+		v = url.Values{
+			"username": {subcmd[1]},
+			"stock":    {subcmd[2]},
+		}
+	case "SELL", "BUY", "SET_BUY_AMOUNT", "SET_BUY_TRIGGER", "SET_SELL_AMOUNT", "SET_SELL_TRIGGER":
+		v = url.Values{
+			"username": {subcmd[1]},
+			"stock":    {subcmd[2]},
+			"amount":   {subcmd[3]},
+		}
+	case "COMMIT_BUY", "CANCEL_BUY", "COMMIT_SELL", "CANCEL_SELL", "DISPLAY_SUMMARY":
+		v = url.Values{
+			"username": {subcmd[1]},
+		}
+	}
+
+	return endpoint, v
 }
