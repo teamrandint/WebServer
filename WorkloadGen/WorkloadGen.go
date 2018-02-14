@@ -3,15 +3,19 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"net/http"
+	"net/url"
 	"os"
 	"regexp"
 	"sync"
+	"time"
 )
 
+// go run WorkloadGen.go serverAddr:port workloadfile
 func main() {
-	endPoint := os.Args[1]
+	serverAddr := os.Args[1]
 	workloadFile := os.Args[2]
-	fmt.Printf("Testing %v on endpoint %v\n", workloadFile, endPoint)
+	fmt.Printf("Testing %v on serverAddr %v\n", workloadFile, serverAddr)
 
 	users := splitUsersFromFile(workloadFile)
 	fmt.Printf("Found %d users...\n", len(users))
@@ -19,11 +23,14 @@ func main() {
 	var wg sync.WaitGroup
 	for userName, commands := range users {
 		fmt.Printf("Running user %v's commands...\n", userName)
+
 		wg.Add(1)
 		go func(commands []string) {
 			for _, command := range commands {
-				//command = command + "a"
-				fmt.Println(command)
+				// username, stock, amount, filename
+				endpoint, values := parseCommand(command)
+				time.Sleep(time.Second) // ADJUST THIS TO CHANGE DELAY
+				http.PostForm(serverAddr+endpoint, values)
 			}
 
 			wg.Done()
@@ -31,8 +38,8 @@ func main() {
 	}
 
 	wg.Wait()
+	http.PostForm(serverAddr+"/DUMPLOG/", url.Values{"filename": {"./output.xml"}})
 	fmt.Printf("Done!\n")
-	// TODO run dumplog
 }
 
 func splitUsersFromFile(filename string) map[string][]string {
@@ -59,4 +66,9 @@ func splitUsersFromFile(filename string) map[string][]string {
 	}
 
 	return outputCommands
+}
+
+// Parse a single line command into the corresponding endpoint and values
+func parseCommand(cmd string) (endpoint string, v url.Values) {
+	return "", url.Values{"test": {"test"}}
 }
