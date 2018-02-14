@@ -4,60 +4,46 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"regexp"
 )
 
 func main() {
 	endPoint := os.Args[1]
 	workloadFile := os.Args[2]
-	fmt.Printf("Testing %v on endpoint %v", workloadFile, endPoint)
+	fmt.Printf("Testing %v on endpoint %v\n", workloadFile, endPoint)
 
 	users := splitUsersFromFile(workloadFile)
 
-	for _, user := range users {
+	for userName, user := range users {
+		fmt.Printf("Running user %v's commands...\n", userName)
 		go runUserRequests(endPoint, user)
 	}
 	defer postDumpLog()
 }
 
 func splitUsersFromFile(filename string) map[string][]string {
-	commands := []string{
-		"ADD,userid,amount",
-		"QUOTE",
-		"BUY",
-		"COMMIT_BUY",
-		"CANCEL_BUY",
-		"SELL",
-		"COMMIT_SELL",
-		"CANCEL_SELL",
-		"SET_BUY_AMOUNT",
-		"CANCEL_SET_BUY",
-		"SET_BUY_TRIGGER",
-		"SET_SELL_AMOUNT",
-		"SET_SELL_TRIGGER",
-		"CANCEL_SET_SELL",
-		"DUMPLOG",
-		"DUMPLOG",
-		"DISPLAY_SUMMARY",
-	}
-
 	file, err := os.Open(filename)
 	if err != nil {
 		panic(err)
 	}
 
+	//https://regex101.com/r/O6xaTp/3
+	re := regexp.MustCompile(`\[\d+\] ((?P<endpoint>\w+),(?P<user>\w+)(,\w+\.*\d*)*)`)
+	outputCommands := make(map[string][]string)
+
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
-		fmt.Println(scanner.Text())
+		line := scanner.Text()
+		matches := re.FindStringSubmatch(line)
+		if matches != nil {
+			command := matches[1]
+			//endpoint := matches[2]
+			user := matches[3]
+			outputCommands[user] = append(outputCommands[user], command)
+		}
 	}
 
-	//for _, line := range workLoad.
-	x := make(map[string][]string)
-
-	x["key"] = append(x["key"], "value")
-	x["key"] = append(x["key"], "value1")
-
-	fmt.Println(commands)
-	return x
+	return outputCommands
 }
 
 func runUserRequests(endpoint string, commands []string) {
@@ -67,5 +53,5 @@ func runUserRequests(endpoint string, commands []string) {
 }
 
 func postDumpLog() {
-
+	runUserRequests("DUMPLOG", []string{"workloadgen_results.xml"})
 }
