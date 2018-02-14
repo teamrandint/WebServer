@@ -34,8 +34,12 @@ func runRequests(serverAddr string, users map[string][]string) {
 		go func(commands []string) {
 			for _, command := range commands {
 				endpoint, values := parseCommand(command)
-				time.Sleep(30 * time.Millisecond)          // ADJUST THIS TO CHANGE DELAY
-				http.PostForm(serverAddr+endpoint, values) // resp, err := ...
+				time.Sleep(30 * time.Millisecond) // ADJUST THIS TO CHANGE DELAY
+				fmt.Println("http://"+serverAddr+"/"+endpoint+"/", values)
+				_, err := http.PostForm("http://"+serverAddr+"/"+endpoint+"/", values) // resp, err := ...
+				if err != nil {
+					fmt.Println(err)
+				}
 			}
 
 			wg.Done()
