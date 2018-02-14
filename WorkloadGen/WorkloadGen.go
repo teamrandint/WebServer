@@ -34,7 +34,7 @@ func runRequests(serverAddr string, users map[string][]string) {
 		go func(commands []string) {
 			for _, command := range commands {
 				endpoint, values := parseCommand(command)
-				time.Sleep(time.Second)                    // ADJUST THIS TO CHANGE DELAY
+				time.Sleep(30 * time.Millisecond)          // ADJUST THIS TO CHANGE DELAY
 				http.PostForm(serverAddr+endpoint, values) // resp, err := ...
 			}
 
@@ -54,7 +54,7 @@ func splitUsersFromFile(filename string) map[string][]string {
 	}
 
 	// https://regex101.com/r/O6xaTp/3
-	re := regexp.MustCompile(`\[\d+\] ((?P<endpoint>\w+),(?P<user>\w+)(,\w+\.*\d*)*)`)
+	re := regexp.MustCompile(`\[\d+\] ((?P<endpoint>\w+),(?P<user>\w+)(,-*\w*\.*\d*)*)`)
 	outputCommands := make(map[string][]string)
 
 	scanner := bufio.NewScanner(file)
