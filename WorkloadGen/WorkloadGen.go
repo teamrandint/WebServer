@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"sync"
 )
 
 func main() {
@@ -13,12 +14,25 @@ func main() {
 	fmt.Printf("Testing %v on endpoint %v\n", workloadFile, endPoint)
 
 	users := splitUsersFromFile(workloadFile)
+	fmt.Printf("Found %d users...\n", len(users))
 
-	for userName, user := range users {
+	var wg sync.WaitGroup
+	for userName, commands := range users {
 		fmt.Printf("Running user %v's commands...\n", userName)
-		go runUserRequests(endPoint, user)
+		wg.Add(1)
+		go func(commands []string) {
+			for _, command := range commands {
+				//command = command + "a"
+				fmt.Println(command)
+			}
+
+			wg.Done()
+		}(commands)
 	}
-	defer postDumpLog()
+
+	wg.Wait()
+	fmt.Printf("Done!\n")
+	// TODO run dumplog
 }
 
 func splitUsersFromFile(filename string) map[string][]string {
@@ -35,6 +49,7 @@ func splitUsersFromFile(filename string) map[string][]string {
 	for scanner.Scan() {
 		line := scanner.Text()
 		matches := re.FindStringSubmatch(line)
+
 		if matches != nil {
 			command := matches[1]
 			//endpoint := matches[2]
@@ -44,14 +59,4 @@ func splitUsersFromFile(filename string) map[string][]string {
 	}
 
 	return outputCommands
-}
-
-func runUserRequests(endpoint string, commands []string) {
-	for _, command := range commands {
-		fmt.Println(command)
-	}
-}
-
-func postDumpLog() {
-	runUserRequests("DUMPLOG", []string{"workloadgen_results.xml"})
 }
