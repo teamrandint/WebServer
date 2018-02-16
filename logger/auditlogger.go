@@ -3,8 +3,10 @@ package logger
 import (
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"strconv"
+	"time"
 )
 
 type Logger interface {
@@ -144,6 +146,7 @@ func (al AuditLogger) QuoteServer(server string, transactionNum int,
 
 func (al AuditLogger) SendLog(slash string, params map[string]string) {
 	req, err := http.NewRequest("get", al.Addr+slash, nil)
+	req.Header.Set("Connection", "close")
 	if err != nil {
 		log.Print(err)
 	}
@@ -154,12 +157,20 @@ func (al AuditLogger) SendLog(slash string, params map[string]string) {
 	}
 
 	req.URL.RawQuery = url.Encode()
-	client := &http.Client{}
+	transport := &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+		Dial: (&net.Dialer{
+			Timeout:   0,
+			KeepAlive: 0,
+		}).Dial,
+		TLSHandshakeTimeout: 10 * time.Second,
+	}
+	client := &http.Client{Transport: transport}
 	resp, err := client.Do(req)
 	if err != nil {
 		fmt.Printf("Error connecting to the audit server for  %s command:  %s", slash, err.Error())
 	}
 
 	// Close connections
-	defer resp.Body.Close()
+	resp.Body.Close()
 }
