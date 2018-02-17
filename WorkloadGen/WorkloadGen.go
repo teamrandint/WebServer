@@ -50,7 +50,7 @@ func runRequests(serverAddr string, users map[string][]string) {
 
 	// Wait for commands, then manually post the final dumplog
 	wg.Wait()
-	http.PostForm(serverAddr+"/DUMPLOG/", url.Values{"filename": {"./output.xml"}})
+	http.PostForm("http://"+serverAddr+"/DUMPLOG/", url.Values{"filename": {"./output.xml"}})
 }
 
 func splitUsersFromFile(filename string) map[string][]string {
