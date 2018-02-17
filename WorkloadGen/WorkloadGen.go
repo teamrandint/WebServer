@@ -3,140 +3,109 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
 	"regexp"
 	"strings"
+	"sync"
+	"time"
 )
 
-var channel = make(chan string, 1000)
-var users = 0
-var hostName = ""
+// go run WorkloadGen.go serverAddr:port workloadfile
+func main() {
+	serverAddr := os.Args[1]
+	workloadFile := os.Args[2]
+	fmt.Printf("Testing %v on serverAddr %v\n", workloadFile, serverAddr)
 
-func makeHTTPRequest(command string) {
-	tokens := strings.Split(command, ",")
-	cmdType := strings.Replace(tokens[0], " ", "", -1)
-	userID := strings.Replace(tokens[1], " ", "", -1)
-	stock := ""
-	amount := ""
+	users := splitUsersFromFile(workloadFile)
+	fmt.Printf("Found %d users...\n", len(users))
 
-	if len(tokens) == 3 {
-		re := regexp.MustCompile("(\\d)+\\.\\d\\d")
-		if re.MatchString(tokens[2]) {
-			// third param is amount
-			amount = strings.Replace(tokens[2], " ", "", -1)
-		} else {
-			stock = strings.Replace(tokens[2], " ", "", -1)
-		}
-	} else if len(tokens) == 4 {
-		stock = strings.Replace(tokens[2], " ", "", -1)
-		amount = strings.Replace(tokens[3], " ", "", -1)
-	}
-
-	endpointURL := hostName + cmdType + "/"
-	resp, err := http.PostForm(endpointURL, url.Values{"username": {userID}, "stock": {stock}, "amount": {amount}})
-
-	if err != nil {
-		fmt.Println("REQUEST ERROR OCCURED!!")
-	} else {
-		// fmt.Println(resp.StatusCode)
-		if resp.StatusCode == 400 {
-			// fmt.Println(endpointURL)
-		}
-		// Always close the response-body, even if content not required
-		defer resp.Body.Close()
-	}
+	runRequests(serverAddr, users)
+	fmt.Printf("Done!\n")
 }
 
-// Special dumplog request method for when end of requests is reached.
-func dumplog(filename string) {
-	endpointURL := hostName + "DUMPLOG/"
-	resp, err := http.PostForm(endpointURL, url.Values{"filename": {filename}})
-	if err != nil {
-		fmt.Println("REQUEST ERROR OCCURED!!")
-	} else {
-		fmt.Println(resp.StatusCode)
-		if resp.StatusCode == 404 {
-			fmt.Println(endpointURL)
-		}
+func runRequests(serverAddr string, users map[string][]string) {
+	var wg sync.WaitGroup
+	for userName, commands := range users {
+		fmt.Printf("Running user %v's commands...\n", userName)
+
+		wg.Add(1)
+		go func(commands []string) {
+			for _, command := range commands {
+				endpoint, values := parseCommand(command)
+				time.Sleep(75 * time.Millisecond) // ADJUST THIS TO CHANGE DELAY
+				fmt.Println("http://"+serverAddr+"/"+endpoint+"/", values)
+				resp, err := http.PostForm("http://"+serverAddr+"/"+endpoint+"/", values) // resp, err := ...
+				if err != nil {
+					fmt.Println(err)
+				}
+
+				resp.Body.Close()
+			}
+
+			wg.Done()
+		}(commands)
 	}
-	// Close connection
-	defer resp.Body.Close()
+
+	// Wait for commands, then manually post the final dumplog
+	wg.Wait()
+	http.PostForm(serverAddr+"/DUMPLOG/", url.Values{"filename": {"./output.xml"}})
 }
 
-func makeUserRequests(commands []string) {
-	for _, command := range commands {
-		makeHTTPRequest(command)
-	}
-	channel <- "done"
-}
-
-// Processes the specified input file and makes async requests for each user.
-// outputs the filename of the dumpfile to be written at the end as the final command.
-func processFile(address string, port string, filename string) string {
-	workloadFile, err := os.Open(filename)
-	var outfileName string
+func splitUsersFromFile(filename string) map[string][]string {
+	file, err := os.Open(filename)
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
-	defer workloadFile.Close()
 
-	scanner := bufio.NewScanner(workloadFile)
+	// https://regex101.com/r/O6xaTp/3
+	re := regexp.MustCompile(`\[\d+\] ((?P<endpoint>\w+),(?P<user>\w+)(,-*\w*\.*\d*)*)`)
+	outputCommands := make(map[string][]string)
 
-	var userCommands = make(map[string][]string)
-	userID := ""
-
+	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := scanner.Text()
-		params := strings.Split(line, ",")
-		re := regexp.MustCompile("^\\[(\\d)+\\]\\s")
+		matches := re.FindStringSubmatch(line)
 
-		// Id contains a space in the file, remove it
-		userID = strings.Replace(params[1], " ", "", -1)
-
-		// user id is the filename for dumplog commands
-		if userID[0] == '.' {
-			outfileName = strings.Replace(params[1], " ", "", -1)
-		} else {
-			fullCommand := re.ReplaceAllString(line, "")
-			userCommands[userID] = append(userCommands[userID], fullCommand)
+		if matches != nil {
+			command := matches[1]
+			//endpoint := matches[2]
+			user := matches[3]
+			outputCommands[user] = append(outputCommands[user], command)
 		}
 	}
 
-	if err := scanner.Err(); err != nil {
-		log.Fatal(err)
-	}
-
-	fmt.Println(len(userCommands))
-	for _, v := range userCommands {
-		users++
-		makeUserRequests(v)
-	}
-	fmt.Print(outfileName)
-	return outfileName
+	return outputCommands
 }
 
-func listenForCompleted() {
-	for i := 0; i < users; i++ {
-		status := <-channel
-		fmt.Println(status)
+// Parse a single line command into the corresponding endpoint and values
+func parseCommand(cmd string) (endpoint string, v url.Values) {
+	subcmd := strings.Split(cmd, ",")
+	endpoint = subcmd[0]
+	// username, stock, amount, filename
+	switch endpoint {
+	case "ADD":
+		v = url.Values{
+			"username": {subcmd[1]},
+			"amount":   {subcmd[2]},
+		}
+	case "QUOTE", "CANCEL_SET_BUY", "CANCEL_SET_SELL":
+		v = url.Values{
+			"username": {subcmd[1]},
+			"stock":    {subcmd[2]},
+		}
+	case "SELL", "BUY", "SET_BUY_AMOUNT", "SET_BUY_TRIGGER", "SET_SELL_AMOUNT", "SET_SELL_TRIGGER":
+		v = url.Values{
+			"username": {subcmd[1]},
+			"stock":    {subcmd[2]},
+			"amount":   {subcmd[3]},
+		}
+	case "COMMIT_BUY", "CANCEL_BUY", "COMMIT_SELL", "CANCEL_SELL", "DISPLAY_SUMMARY":
+		v = url.Values{
+			"username": {subcmd[1]},
+		}
 	}
-	fmt.Println("finished users requests")
-}
 
-func main() {
-	if len(os.Args) < 4 {
-		fmt.Println("Please supply a host name, port number, and filename.")
-		return
-	}
-
-	address := os.Args[1]
-	port := os.Args[2]
-	filename := os.Args[3]
-	hostName = "http://" + address + ":" + port + "/"
-	outFileName := processFile(address, port, filename)
-	listenForCompleted()
-	dumplog(outFileName)
+	return endpoint, v
 }
