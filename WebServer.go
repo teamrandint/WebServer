@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"os"
 	"regexp"
-	"seng468/WebServer/Commands"
 	"sync/atomic"
 
 	"seng468/WebServer/UserSessions"
@@ -27,6 +26,7 @@ func (webServer *WebServer) makeHandler(fn func(http.ResponseWriter, *http.Reque
 		m := webServer.validPath.FindStringSubmatch(request.URL.Path)
 		if m == nil {
 			http.NotFound(writer, request)
+			panic(request)
 			return
 		}
 		fn(writer, request, m[1])
@@ -51,16 +51,17 @@ func (webServer *WebServer) addHandler(writer http.ResponseWriter, request *http
 	amount := request.FormValue("amount")
 
 	webServer.logger.UserCommand(webServer.Name, currTransNum, "ADD", username, nil, nil, amount)
-	// TODO : generic login once for each user.
-	webServer.userLogin(username)
-
 	resp := webServer.transmitter.MakeRequest(currTransNum, "ADD,"+username+","+amount)
 
 	if resp == "-1" {
-		http.Error(writer, "Invalid Request", 400)
 		webServer.logger.SystemError(webServer.Name, currTransNum, "ADD",
 			username, nil, nil, nil, "Bad response from transactionserv")
+		http.Error(writer, "Invalid Request", 400)
+		return
 	}
+
+	writer.WriteHeader(http.StatusOK)
+	return
 }
 
 func (webServer *WebServer) quoteHandler(writer http.ResponseWriter, request *http.Request, title string) {
@@ -69,16 +70,16 @@ func (webServer *WebServer) quoteHandler(writer http.ResponseWriter, request *ht
 	stock := request.FormValue("stock")
 
 	webServer.logger.UserCommand(webServer.Name, currTransNum, "QUOTE", username, stock, nil, nil)
-
-	webServer.userLogin(username)
-
 	resp := webServer.transmitter.MakeRequest(currTransNum, "QUOTE,"+username+","+stock)
 
 	if resp == "-1" {
-		http.Error(writer, "Invalid Request", 400)
 		webServer.logger.SystemError(webServer.Name, currTransNum, "QUOTE",
 			username, stock, nil, nil, "Bad response from transactionserv")
+		http.Error(writer, "Invalid Request", 400)
+		return
 	}
+	writer.WriteHeader(http.StatusOK)
+	return
 }
 
 func (webServer *WebServer) buyHandler(writer http.ResponseWriter, request *http.Request, title string) {
@@ -86,90 +87,52 @@ func (webServer *WebServer) buyHandler(writer http.ResponseWriter, request *http
 	username := request.FormValue("username")
 	stock := request.FormValue("stock")
 	amount := request.FormValue("amount")
-	command := commands.NewCommand("BUY", username, []string{stock, amount})
 
 	webServer.logger.UserCommand(webServer.Name, currTransNum, "BUY", username, stock, nil, amount)
-
-	webServer.userLogin(username)
-
 	resp := webServer.transmitter.MakeRequest(currTransNum, "BUY,"+username+","+stock+","+amount)
 
 	if resp == "-1" {
-		http.Error(writer, "Invalid Request", 400)
 		webServer.logger.SystemError(webServer.Name, currTransNum, "BUY",
 			username, stock, nil, amount, "Bad response from transactionserv")
+		http.Error(writer, "Invalid Request", 400)
 		return
 	}
-
-	// Append buy to pendingBuys list
-	webServer.userSessions[username].PendingBuys = append(webServer.userSessions[username].PendingBuys, command)
+	writer.WriteHeader(http.StatusOK)
+	return
 }
 
 func (webServer *WebServer) commitBuyHandler(writer http.ResponseWriter, request *http.Request, title string) {
 	currTransNum := int(atomic.AddInt64(&webServer.transactionNumber, 1))
 	username := request.FormValue("username")
-	webServer.userLogin(username)
 
 	webServer.logger.UserCommand(webServer.Name, currTransNum, "COMMIT_BUY", username, nil, nil, nil)
-
-	if !webServer.userSessions[username].HasPendingBuys() {
-		// No pendings buys, return error
-		http.Error(writer, "Invalid request", 400)
-		//fmt.Printf("No buys to commit for user %s\n", username)
-		webServer.logger.SystemError(webServer.Name, currTransNum, "COMMIT_BUY",
-			username, nil, nil, nil, "No pending buys to commit")
-		return
-	}
-
-	command := webServer.userSessions[username].PendingBuys[0]
-	var resp string
-	if command.HasTimeElapsed() {
-		// Time has elapsed on Buy, automatically cancel request
-		resp = webServer.transmitter.MakeRequest(currTransNum, "CANCEL_BUY,"+username)
-		http.Error(writer, "Invalid request", 400)
-		webServer.logger.SystemError(webServer.Name, currTransNum, "COMMIT_BUY",
-			username, nil, nil, nil, "Time elapsed on most recent buy request")
-		//fmt.Printf("Time has elapsed on last buy for user %s\n", username)
-	} else {
-		resp = webServer.transmitter.MakeRequest(currTransNum, "COMMIT_BUY,"+username)
-	}
+	resp := webServer.transmitter.MakeRequest(currTransNum, "COMMIT_BUY,"+username)
 
 	if resp == "-1" {
-		http.Error(writer, "Invalid Request", 400)
 		webServer.logger.SystemError(webServer.Name, currTransNum, "COMMIT_BUY",
 			username, nil, nil, nil, "Bad response from transactionserv")
+		http.Error(writer, "Invalid Request", 400)
 		return
 	}
-	// Pop last sell off the pending list.
-	webServer.userSessions[username].PendingBuys = webServer.userSessions[username].PendingBuys[1:]
+	writer.WriteHeader(http.StatusOK)
+	return
 }
 
 func (webServer *WebServer) cancelBuyHandler(writer http.ResponseWriter, request *http.Request, title string) {
 	currTransNum := int(atomic.AddInt64(&webServer.transactionNumber, 1))
 	username := request.FormValue("username")
 
-	webServer.logger.UserCommand(webServer.Name, currTransNum, "CANCEL_BUY",
-		username, nil, nil, nil)
-
-	webServer.userLogin(username)
-	if !webServer.userSessions[username].HasPendingBuys() {
-		http.Error(writer, "Invalid request", 400)
-		webServer.logger.SystemError(webServer.Name, currTransNum, "CANCEL_BUY",
-			username, nil, nil, nil, "No pending buys to cancel")
-		//fmt.Printf("No buys to cancel for user %s\n", username)
-		return
-	}
-
+	webServer.logger.UserCommand(webServer.Name, currTransNum, "CANCEL_BUY", username, nil, nil, nil)
 	resp := webServer.transmitter.MakeRequest(currTransNum, "CANCEL_BUY,"+username)
 
 	if resp == "-1" {
-		http.Error(writer, "Invalid Request", 400)
 		webServer.logger.SystemError(webServer.Name, currTransNum, "CANCEL_BUY",
 			username, nil, nil, nil, "Bad response from transactionserv")
+		http.Error(writer, "Invalid Request", 400)
 		return
 	}
-	// Pop last sell off the pending list.
-	webServer.userSessions[username].PendingBuys = webServer.userSessions[username].PendingBuys[1:]
+	writer.WriteHeader(http.StatusOK)
+	return
 }
 
 func (webServer *WebServer) sellHandler(writer http.ResponseWriter, request *http.Request, title string) {
@@ -177,19 +140,17 @@ func (webServer *WebServer) sellHandler(writer http.ResponseWriter, request *htt
 	username := request.FormValue("username")
 	stock := request.FormValue("stock")
 	amount := request.FormValue("amount")
-	command := commands.NewCommand("SELL", username, []string{stock, amount})
 
 	webServer.logger.UserCommand(webServer.Name, currTransNum, "SELL", username, stock, nil, amount)
-
-	webServer.userLogin(username)
 	resp := webServer.transmitter.MakeRequest(currTransNum, "SELL,"+username+","+stock+","+amount)
 	if resp == "-1" {
-		http.Error(writer, "Invalid Request", 400)
 		webServer.logger.SystemError(webServer.Name, currTransNum, "SELL",
 			username, stock, nil, amount, "Bad response from transactionserv")
+		http.Error(writer, "Invalid Request", 400)
 		return
 	}
-	webServer.userSessions[username].PendingSells = append(webServer.userSessions[username].PendingSells, command)
+	writer.WriteHeader(http.StatusOK)
+	return
 }
 
 func (webServer *WebServer) commitSellHandler(writer http.ResponseWriter, request *http.Request, title string) {
@@ -197,66 +158,32 @@ func (webServer *WebServer) commitSellHandler(writer http.ResponseWriter, reques
 	username := request.FormValue("username")
 
 	webServer.logger.UserCommand(webServer.Name, currTransNum, "COMMIT_SELL", username, nil, nil, nil)
-	webServer.userLogin(username)
-
-	if !webServer.userSessions[username].HasPendingSells() {
-		// No pendings buys, return error
-		http.NotFound(writer, request)
-		webServer.logger.SystemError(webServer.Name, currTransNum, "COMMIT_SELL",
-			username, nil, nil, nil, "No pending sells to commit")
-		//fmt.Printf("No sells to commit for user %s\n", username)
-		return
-	}
-
-	command := webServer.userSessions[username].PendingSells[0]
-	var resp string
-
-	if command.HasTimeElapsed() {
-		// Time has elapsed on Buy, automatically cancel request
-		resp = webServer.transmitter.MakeRequest(currTransNum, "COMMIT_SELL,"+username)
-		http.NotFound(writer, request)
-		webServer.logger.SystemError(webServer.Name, currTransNum, "COMMIT_SELL",
-			username, nil, nil, nil, "Time elapsed on most recent sell")
-		//fmt.Printf("Time has elapsed on last sell for user %s\n", username)
-	} else {
-		resp = webServer.transmitter.MakeRequest(currTransNum, "COMMIT_SELL,"+username)
-	}
+	resp := webServer.transmitter.MakeRequest(currTransNum, "COMMIT_SELL,"+username)
 
 	if resp == "-1" {
-		http.Error(writer, "Invalid Request", 400)
 		webServer.logger.SystemError(webServer.Name, currTransNum, "COMMIT_SELL",
 			username, nil, nil, nil, "Bad response from transactionserv")
+		http.Error(writer, "Invalid Request", 400)
 		return
 	}
-	// Pop last sell off the pending list.
-	webServer.userSessions[username].PendingSells = webServer.userSessions[username].PendingSells[1:]
+	writer.WriteHeader(http.StatusOK)
+	return
 }
 
 func (webServer *WebServer) cancelSellHandler(writer http.ResponseWriter, request *http.Request, title string) {
 	currTransNum := int(atomic.AddInt64(&webServer.transactionNumber, 1))
 	username := request.FormValue("username")
-	webServer.logger.UserCommand(webServer.Name, currTransNum, "CANCEL_SELL",
-		username, nil, nil, nil)
-	webServer.userLogin(username)
-
-	if !webServer.userSessions[username].HasPendingSells() {
-		http.NotFound(writer, request)
-		webServer.logger.SystemError(webServer.Name, currTransNum, "CANCEL_SELL",
-			username, nil, nil, nil, "User has no pending sells")
-		//fmt.Printf("No sells to cancel for user %s\n", username)
-		return
-	}
-
+	webServer.logger.UserCommand(webServer.Name, currTransNum, "CANCEL_SELL", username, nil, nil, nil)
 	resp := webServer.transmitter.MakeRequest(currTransNum, "CANCEL_SELL,"+username)
 
 	if resp == "-1" {
-		http.Error(writer, "Invalid Request", 400)
 		webServer.logger.SystemError(webServer.Name, currTransNum, "CANCEL_SELL",
 			username, nil, nil, nil, "Bad response from transactionserv")
+		http.Error(writer, "Invalid Request", 400)
 		return
 	}
-	// Pop last sell off the pending list.
-	webServer.userSessions[username].PendingSells = webServer.userSessions[username].PendingSells[1:]
+	writer.WriteHeader(http.StatusOK)
+	return
 }
 
 func (webServer *WebServer) setBuyAmountHandler(writer http.ResponseWriter, request *http.Request, title string) {
@@ -265,17 +192,18 @@ func (webServer *WebServer) setBuyAmountHandler(writer http.ResponseWriter, requ
 	stock := request.FormValue("stock")
 	amount := request.FormValue("amount")
 
-	webServer.logger.UserCommand(webServer.Name, currTransNum, "SET_BUY_AMOUNT",
-		username, stock, nil, amount)
+	webServer.logger.UserCommand(webServer.Name, currTransNum, "SET_BUY_AMOUNT", username, stock, nil, amount)
 
 	resp := webServer.transmitter.MakeRequest(currTransNum, "SET_BUY_AMOUNT,"+username+","+stock+","+amount)
 
 	if resp == "-1" {
-		http.Error(writer, "Invalid Request", 400)
 		webServer.logger.SystemError(webServer.Name, currTransNum, "SET_BUY_AMOUNT",
 			username, stock, nil, amount, "Bad response from transactionserv")
+		http.Error(writer, "Invalid Request", 400)
 		return
 	}
+	writer.WriteHeader(http.StatusOK)
+	return
 }
 
 func (webServer *WebServer) cancelSetBuyHandler(writer http.ResponseWriter, request *http.Request, title string) {
@@ -283,17 +211,18 @@ func (webServer *WebServer) cancelSetBuyHandler(writer http.ResponseWriter, requ
 	username := request.FormValue("username")
 	stock := request.FormValue("stock")
 
-	webServer.logger.UserCommand(webServer.Name, currTransNum, "CANCEL_SET_BUY",
-		username, stock, nil, nil)
+	webServer.logger.UserCommand(webServer.Name, currTransNum, "CANCEL_SET_BUY", username, stock, nil, nil)
 
 	resp := webServer.transmitter.MakeRequest(currTransNum, "CANCEL_SET_BUY,"+username+","+stock)
 
 	if resp == "-1" {
-		http.Error(writer, "Invalid Request", 400)
 		webServer.logger.SystemError(webServer.Name, currTransNum, "CANCEL_SET_BUY",
 			username, stock, nil, nil, "Bad response from transactionserv")
+		http.Error(writer, "Invalid Request", 400)
 		return
 	}
+	writer.WriteHeader(http.StatusOK)
+	return
 }
 
 func (webServer *WebServer) setBuyTriggerHandler(writer http.ResponseWriter, request *http.Request, title string) {
@@ -308,11 +237,14 @@ func (webServer *WebServer) setBuyTriggerHandler(writer http.ResponseWriter, req
 	resp := webServer.transmitter.MakeRequest(currTransNum, "SET_BUY_TRIGGER,"+username+","+stock+","+amount)
 
 	if resp == "-1" {
-		http.Error(writer, "Invalid Request", 400)
 		webServer.logger.SystemError(webServer.Name, currTransNum, "SET_BUY_TRIGGER",
 			username, stock, nil, amount, "Bad response from transactionserv")
+		http.Error(writer, "Invalid Request", 400)
 		return
 	}
+
+	writer.WriteHeader(http.StatusOK)
+	return
 }
 
 func (webServer *WebServer) setSellAmountHandler(writer http.ResponseWriter, request *http.Request, title string) {
@@ -327,11 +259,14 @@ func (webServer *WebServer) setSellAmountHandler(writer http.ResponseWriter, req
 	resp := webServer.transmitter.MakeRequest(currTransNum, "SET_SELL_AMOUNT,"+username+","+stock+","+amount)
 
 	if resp == "-1" {
-		http.Error(writer, "Invalid Request", 400)
 		webServer.logger.SystemError(webServer.Name, currTransNum, "SET_SELL_AMOUNT",
 			username, stock, nil, amount, "Bad response from transactionserv")
+		http.Error(writer, "Invalid Request", 400)
 		return
 	}
+
+	writer.WriteHeader(http.StatusOK)
+	return
 }
 
 func (webServer *WebServer) setSellTriggerHandler(writer http.ResponseWriter, request *http.Request, title string) {
@@ -345,11 +280,14 @@ func (webServer *WebServer) setSellTriggerHandler(writer http.ResponseWriter, re
 
 	resp := webServer.transmitter.MakeRequest(currTransNum, "SET_SELL_TRIGGER,"+username+","+stock+","+amount)
 	if resp == "-1" {
-		http.Error(writer, "Invalid Request", 400)
 		webServer.logger.SystemError(webServer.Name, currTransNum, "SET_SELL_TRIGGER",
 			username, stock, nil, amount, "Bad response from transactionserv")
+		http.Error(writer, "Invalid Request", 400)
 		return
 	}
+
+	writer.WriteHeader(http.StatusOK)
+	return
 }
 
 func (webServer *WebServer) cancelSetSellHandler(writer http.ResponseWriter, request *http.Request, title string) {
@@ -362,15 +300,19 @@ func (webServer *WebServer) cancelSetSellHandler(writer http.ResponseWriter, req
 
 	resp := webServer.transmitter.MakeRequest(currTransNum, "CANCEL_SET_SELL,"+username+","+stock)
 	if resp == "-1" {
-		http.Error(writer, "Invalid Request", 400)
 		webServer.logger.SystemError(webServer.Name, currTransNum, "CANCEL_SET_SELL",
 			username, stock, nil, nil, "Bad response from transactionserv")
+		http.Error(writer, "Invalid Request", 400)
 		return
 	}
+
+	writer.WriteHeader(http.StatusOK)
+	return
 }
 
 func (webServer *WebServer) dumplogHandler(writer http.ResponseWriter, request *http.Request, title string) {
 	currTransNum := int(atomic.AddInt64(&webServer.transactionNumber, 1))
+
 	username := request.FormValue("username")
 	filename := request.FormValue("filename")
 	message := ""
@@ -387,15 +329,19 @@ func (webServer *WebServer) dumplogHandler(writer http.ResponseWriter, request *
 
 	resp := webServer.transmitter.MakeRequest(currTransNum, message)
 	if resp == "-1" {
-		http.Error(writer, "Invalid Request", 400)
 		webServer.logger.SystemError(webServer.Name, currTransNum, "DUMPLOG",
 			username, nil, nil, nil, "Bad response from transactionserv")
+		http.Error(writer, "Invalid Request", 400)
 		return
 	}
+
+	writer.WriteHeader(http.StatusOK)
+	return
 }
 
 func (webServer *WebServer) displaySummaryHandler(writer http.ResponseWriter, request *http.Request, title string) {
 	currTransNum := int(atomic.AddInt64(&webServer.transactionNumber, 1))
+
 	username := request.FormValue("username")
 
 	webServer.logger.UserCommand(webServer.Name, currTransNum, "DISPLAY_SUMMARY",
@@ -403,11 +349,14 @@ func (webServer *WebServer) displaySummaryHandler(writer http.ResponseWriter, re
 
 	resp := webServer.transmitter.MakeRequest(currTransNum, "DISPLAY_SUMMARY,"+username)
 	if resp == "-1" {
-		http.Error(writer, "Invalid Request", 400)
 		webServer.logger.SystemError(webServer.Name, currTransNum, "DISPLAY_SUMMARY",
 			username, nil, nil, nil, "Bad response from transactionserv")
+		http.Error(writer, "Invalid Request", 400)
 		return
 	}
+
+	writer.WriteHeader(http.StatusOK)
+	return
 }
 
 func (webServer *WebServer) genericHandler(writer http.ResponseWriter, request *http.Request, title string) {
