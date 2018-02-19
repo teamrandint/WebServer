@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"strconv"
 )
 
 type Transmitters interface {
@@ -34,7 +35,9 @@ func NewTransmitter(addr string, prt string) *Transmitter {
 	return transmitter
 }
 
-func (trans *Transmitter) MakeRequest(message string) string {
+func (trans *Transmitter) MakeRequest(transNum int, message string) string {
+	prefix := strconv.Itoa(transNum)
+	message = prefix + ";" + message
 	message += "\n"
 	conn, err := net.Dial("tcp", trans.address+":"+trans.port)
 
