@@ -7,7 +7,6 @@ import (
 	"net/url"
 	"os"
 	"regexp"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -17,17 +16,16 @@ import (
 func main() {
 	serverAddr := os.Args[1]
 	workloadFile := os.Args[2]
-	delayMs, _ := strconv.Atoi(os.Args[3])
-	fmt.Printf("Testing %v on serverAddr %v with delay of %vms\n", workloadFile, serverAddr, delayMs)
+	fmt.Printf("Testing %v on serverAddr %v\n", workloadFile, serverAddr)
 
 	users := splitUsersFromFile(workloadFile)
 	fmt.Printf("Found %d users...\n", len(users))
 
-	runRequests(serverAddr, users, delayMs)
+	runRequests(serverAddr, users)
 	fmt.Printf("Done!\n")
 }
 
-func runRequests(serverAddr string, users map[string][]string, delay int) {
+func runRequests(serverAddr string, users map[string][]string) {
 	var wg sync.WaitGroup
 	for userName, commands := range users {
 		fmt.Printf("Running user %v's commands...\n", userName)
@@ -36,8 +34,8 @@ func runRequests(serverAddr string, users map[string][]string, delay int) {
 		go func(commands []string) {
 			for _, command := range commands {
 				endpoint, values := parseCommand(command)
-				time.Sleep(time.Duration(delay) * time.Millisecond)
-				//fmt.Println("http://"+serverAddr+"/"+endpoint+"/", values)
+				time.Sleep(75 * time.Millisecond) // ADJUST THIS TO CHANGE DELAY
+				fmt.Println("http://"+serverAddr+"/"+endpoint+"/", values)
 				resp, err := http.PostForm("http://"+serverAddr+"/"+endpoint+"/", values) // resp, err := ...
 				if err != nil {
 					fmt.Println(err)
