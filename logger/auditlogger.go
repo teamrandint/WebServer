@@ -166,6 +166,7 @@ func (al AuditLogger) SendLog(slash string, params map[string]string) {
 		TLSHandshakeTimeout: 10 * time.Second,
 	}
 	client := &http.Client{Transport: transport}
+	// fmt.Println("Logging to audit server")
 	resp, err := client.Do(req)
 	if err != nil {
 		fmt.Printf("Error connecting to the audit server for  %s command:  %s", slash, err.Error())
