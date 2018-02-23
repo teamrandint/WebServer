@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -14,29 +15,42 @@ import (
 
 // go run WorkloadGen.go serverAddr:port workloadfile
 func main() {
+	if (len(os.Args) < 4) {
+		fmt.Printf("Usage: server address, workloadfile, delay(ms)")
+		return
+	}
+	
 	serverAddr := os.Args[1]
 	workloadFile := os.Args[2]
-	fmt.Printf("Testing %v on serverAddr %v\n", workloadFile, serverAddr)
+	delayMs, _ := strconv.Atoi(os.Args[3])
+	fmt.Printf("Testing %v on serverAddr %v with delay of %vms\n", workloadFile, serverAddr, delayMs)
 
 	users := splitUsersFromFile(workloadFile)
 	fmt.Printf("Found %d users...\n", len(users))
 
-	runRequests(serverAddr, users)
+	runRequests(serverAddr, users, delayMs)
 	fmt.Printf("Done!\n")
 }
 
-func runRequests(serverAddr string, users map[string][]string) {
+func runRequests(serverAddr string, users map[string][]string, delay int) {
 	var wg sync.WaitGroup
 	for userName, commands := range users {
 		fmt.Printf("Running user %v's commands...\n", userName)
 
 		wg.Add(1)
 		go func(commands []string) {
+			// Issue login before executing any commands
+			resp, err := http.PostForm("http://"+serverAddr+"/"+"LOGIN"+"/", url.Values{"username":{userName}})
+			if err != nil {
+				fmt.Println(err)
+			}
+			resp.Body.Close()
+			
 			for _, command := range commands {
 				endpoint, values := parseCommand(command)
-				time.Sleep(75 * time.Millisecond) // ADJUST THIS TO CHANGE DELAY
-				fmt.Println("http://"+serverAddr+"/"+endpoint+"/", values)
-				resp, err := http.PostForm("http://"+serverAddr+"/"+endpoint+"/", values) // resp, err := ...
+				time.Sleep(time.Duration(delay) * time.Millisecond) // ADJUST THIS TO CHANGE DELAY
+				// fmt.Println("http://"+serverAddr+"/"+endpoint+"/", values)
+				resp, err := http.PostForm("http://"+serverAddr+"/"+endpoint+"/", values)
 				if err != nil {
 					fmt.Println(err)
 				}
