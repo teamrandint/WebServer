@@ -39,17 +39,17 @@ func (trans *Transmitter) MakeRequest(transNum int,message string) string {
 	prefix := strconv.Itoa(transNum)
 	message = prefix + ";" + message
 	message += "\n"
-	conn, err := net.Dial("tcp", trans.address+":"+trans.port)
+	// conn, err := net.Dial("tcp", trans.address+":"+trans.port)
 
-	if err != nil {
-		// Error in connection
-		log.Fatal(err)
-	} else {
-		trans.connection = conn
-	}
+	// if err != nil {
+	// 	// Error in connection
+	// 	log.Fatal(err)
+	// } else {
+	// 	trans.connection = conn
+	// }
 
 	fmt.Fprintf(trans.connection, message)
 	reply, _ := bufio.NewReader(trans.connection).ReadString('\n')
-	trans.connection.Close()
+	// trans.connection.Close()
 	return reply
 }
