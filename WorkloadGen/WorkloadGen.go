@@ -15,7 +15,7 @@ import (
 
 // go run WorkloadGen.go serverAddr:port workloadfile
 func main() {
-	if (len(os.Args) < 3) {
+	if (len(os.Args) < 4) {
 		fmt.Printf("Usage: server address, workloadfile, delay(ms)")
 		return
 	}
