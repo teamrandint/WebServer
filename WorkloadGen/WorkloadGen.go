@@ -15,6 +15,11 @@ import (
 
 // go run WorkloadGen.go serverAddr:port workloadfile
 func main() {
+	if (len(os.Args) < 4) {
+		fmt.Printf("Usage: server address, workloadfile, delay(ms)")
+		return
+	}
+	
 	serverAddr := os.Args[1]
 	workloadFile := os.Args[2]
 	delayMs, _ := strconv.Atoi(os.Args[3])
@@ -34,11 +39,18 @@ func runRequests(serverAddr string, users map[string][]string, delay int) {
 
 		wg.Add(1)
 		go func(commands []string) {
+			// Issue login before executing any commands
+			resp, err := http.PostForm("http://"+serverAddr+"/"+"LOGIN"+"/", url.Values{"username":{userName}})
+			if err != nil {
+				fmt.Println(err)
+			}
+			resp.Body.Close()
+			
 			for _, command := range commands {
 				endpoint, values := parseCommand(command)
-				time.Sleep(time.Duration(delay) * time.Millisecond)
-				//fmt.Println("http://"+serverAddr+"/"+endpoint+"/", values)
-				resp, err := http.PostForm("http://"+serverAddr+"/"+endpoint+"/", values) // resp, err := ...
+				time.Sleep(time.Duration(delay) * time.Millisecond) // ADJUST THIS TO CHANGE DELAY
+				// fmt.Println("http://"+serverAddr+"/"+endpoint+"/", values)
+				resp, err := http.PostForm("http://"+serverAddr+"/"+endpoint+"/", values)
 				if err != nil {
 					fmt.Println(err)
 				}
