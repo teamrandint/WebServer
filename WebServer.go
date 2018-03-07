@@ -364,22 +364,14 @@ func (webServer *WebServer) genericHandler(writer http.ResponseWriter, request *
 }
 
 func main() {
-	if len(os.Args) < 3 {
-		fmt.Println("Please enter a valid server address and port number.")
-		return
-	}
-
-	address := os.Args[1]
-	port := os.Args[2]
-
-	serverAddress := string(address) + ":" + string(port)
-	auditAddr := "http://localhost:8080"
+	serverAddress := os.Getenv("webaddr") + ":" + os.Getenv("webport")
+	auditAddr := "http://" + os.Getenv("auditaddr") + ":" + os.Getenv("auditport")
 
 	webServer := &WebServer{
 		Name:              "webserver",
 		transactionNumber: 0,
 		userSessions:      make(map[string]*usersessions.UserSession),
-		transmitter:       transmitter.NewTransmitter("localhost", "8000"),
+		transmitter:       transmitter.NewTransmitter(os.Getenv("transaddr"), os.Getenv("transport")),
 		logger:            logger.AuditLogger{Addr: auditAddr},
 		validPath:         regexp.MustCompile("^/(ADD|QUOTE|BUY|COMMIT_BUY|CANCEL_BUY|SELL|COMMIT_SELL|CANCEL_SELL|SET_BUY_AMOUNT|CANCEL_SET_BUY|SET_BUY_TRIGGER|SET_SELL_AMOUNT|SET_SELL_TRIGGER|CANCEL_SET_SELL|DUMPLOG|DISPLAY_SUMMARY)/$"),
 	}
@@ -402,6 +394,6 @@ func main() {
 	http.HandleFunc("/DUMPLOG/", webServer.makeHandler(webServer.dumplogHandler))
 	http.HandleFunc("/DISPLAY_SUMMARY/", webServer.makeHandler(webServer.displaySummaryHandler))
 
-	fmt.Printf("Successfully started server on address: %s, port #: %s\n", address, port)
+	fmt.Printf("Successfully started server on %s\n", serverAddress)
 	http.ListenAndServe(serverAddress, nil)
 }
