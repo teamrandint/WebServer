@@ -1,7 +1,7 @@
 package usersessions
 
 import (
-	"../Commands"
+	"seng468/WebServer/Commands"
 )
 
 type UserSessions interface {
