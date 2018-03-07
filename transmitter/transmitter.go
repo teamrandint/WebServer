@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"strconv"
+	"time"
 )
 
 type Transmitters interface {
@@ -22,15 +23,17 @@ func NewTransmitter(addr string, prt string) *Transmitter {
 	transmitter := new(Transmitter)
 	transmitter.address = addr
 	transmitter.port = prt
-	// // Create a connection to the specified server
-	// conn, err := net.Dial("tcp", addr+":"+prt)
+  
+	// Create a connection to the specified server
+	var conn net.Conn
+	var err error
+	for err != nil {
+		conn, err = net.Dial("tcp", addr+":"+prt)
+		time.Sleep(time.Millisecond * 30)
+		log.Fatal(err)
+	}
 
-	// if err != nil {
-	// 	// Error in connection
-	// 	log.Fatal(err)
-	// } else {
-	// 	transmitter.connection = conn
-	// }
+	transmitter.connection = conn
 
 	return transmitter
 }
