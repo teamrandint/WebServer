@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"seng468/WebServer/Commands"
 	"sync/atomic"
+
 	"golang.org/x/sync/syncmap"
 
 	"seng468/WebServer/UserSessions"
@@ -38,7 +39,7 @@ func (webServer *WebServer) makeHandler(fn func(http.ResponseWriter, *http.Reque
 // Garuntees that the user exists in the session cache for managing operations
 func (webServer *WebServer) loginHandler(writer http.ResponseWriter, request *http.Request, title string) {
 	userName := request.FormValue("username")
-	if _, ok := webServer.userSessions.Load(userName); !ok {		
+	if _, ok := webServer.userSessions.Load(userName); !ok {
 		webServer.userSessions.Store(userName, usersessions.NewUserSession(userName))
 	}
 }
@@ -49,8 +50,8 @@ func (webServer *WebServer) addHandler(writer http.ResponseWriter, request *http
 	amount := request.FormValue("amount")
 
 	webServer.logger.UserCommand(webServer.Name, currTransNum, "ADD", username, nil, nil, amount)
-	
-	resp := webServer.transmitter.MakeRequest(currTransNum ,"ADD," + username + "," + amount)
+
+	resp := webServer.transmitter.MakeRequest(currTransNum, "ADD,"+username+","+amount)
 	if resp == "-1" {
 		webServer.logger.SystemError(webServer.Name, currTransNum, "ADD",
 			username, nil, nil, nil, "Bad response from transactionserv")
@@ -67,7 +68,7 @@ func (webServer *WebServer) quoteHandler(writer http.ResponseWriter, request *ht
 	webServer.logger.UserCommand(webServer.Name, currTransNum, "QUOTE",
 		username, stock, nil, nil)
 
-	resp := webServer.transmitter.MakeRequest(currTransNum, "QUOTE," + username + "," + stock)
+	resp := webServer.transmitter.MakeRequest(currTransNum, "QUOTE,"+username+","+stock)
 
 	if resp == "-1" {
 		webServer.logger.SystemError(webServer.Name, currTransNum, "QUOTE",
@@ -95,7 +96,7 @@ func (webServer *WebServer) buyHandler(writer http.ResponseWriter, request *http
 	}
 	userSession := val.(*usersessions.UserSession)
 
-	resp := webServer.transmitter.MakeRequest(currTransNum, "BUY," + username + "," + stock + "," + amount)
+	resp := webServer.transmitter.MakeRequest(currTransNum, "BUY,"+username+","+stock+","+amount)
 
 	if resp == "-1" {
 		webServer.logger.SystemError(webServer.Name, currTransNum, "BUY",
@@ -136,13 +137,13 @@ func (webServer *WebServer) commitBuyHandler(writer http.ResponseWriter, request
 	var resp string
 	if lastBuyCommand.HasTimeElapsed() {
 		// Time has elapsed on Buy, automatically cancel request
-		resp = webServer.transmitter.MakeRequest(currTransNum, "CANCEL_BUY," + username)
+		resp = webServer.transmitter.MakeRequest(currTransNum, "CANCEL_BUY,"+username)
 		webServer.logger.SystemError(webServer.Name, currTransNum, "COMMIT_BUY",
 			username, nil, nil, nil, "Time elapsed on most recent buy request")
 		http.Error(writer, "Invalid request", 400)
 		//fmt.Printf("Time has elapsed on last buy for user %s\n", username)
 	} else {
-		resp = webServer.transmitter.MakeRequest(currTransNum, "COMMIT_BUY," + username)
+		resp = webServer.transmitter.MakeRequest(currTransNum, "COMMIT_BUY,"+username)
 	}
 
 	if resp == "-1" {
@@ -178,9 +179,9 @@ func (webServer *WebServer) cancelBuyHandler(writer http.ResponseWriter, request
 		return
 	}
 
-	resp := webServer.transmitter.MakeRequest(currTransNum, "CANCEL_BUY," + username)
+	resp := webServer.transmitter.MakeRequest(currTransNum, "CANCEL_BUY,"+username)
 
-	if resp == "-1" {	
+	if resp == "-1" {
 		webServer.logger.SystemError(webServer.Name, currTransNum, "CANCEL_BUY",
 			username, nil, nil, nil, "Bad response from transactionserv")
 		http.Error(writer, "Invalid Request", 400)
@@ -199,7 +200,7 @@ func (webServer *WebServer) sellHandler(writer http.ResponseWriter, request *htt
 
 	webServer.logger.UserCommand(webServer.Name, currTransNum, "SELL",
 		username, stock, nil, amount)
-	
+
 	val, ok := webServer.userSessions.Load(username)
 	// User must be logged in to execute any commands.
 	if !ok {
@@ -208,7 +209,7 @@ func (webServer *WebServer) sellHandler(writer http.ResponseWriter, request *htt
 	}
 	userSession := val.(*usersessions.UserSession)
 
-	resp := webServer.transmitter.MakeRequest(currTransNum, "SELL," + username + "," + stock + "," + amount)
+	resp := webServer.transmitter.MakeRequest(currTransNum, "SELL,"+username+","+stock+","+amount)
 	if resp == "-1" {
 		webServer.logger.SystemError(webServer.Name, currTransNum, "SELL",
 			username, stock, nil, amount, "Bad response from transactionserv")
@@ -248,13 +249,13 @@ func (webServer *WebServer) commitSellHandler(writer http.ResponseWriter, reques
 
 	if command.HasTimeElapsed() {
 		// Time has elapsed on Buy, automatically cancel request
-		resp = webServer.transmitter.MakeRequest(currTransNum, "CANCEL_SELL," + username)
+		resp = webServer.transmitter.MakeRequest(currTransNum, "CANCEL_SELL,"+username)
 		webServer.logger.SystemError(webServer.Name, currTransNum, "COMMIT_SELL",
 			username, nil, nil, nil, "Time elapsed on most recent sell")
 		http.NotFound(writer, request)
 		//fmt.Printf("Time has elapsed on last sell for user %s\n", username)
 	} else {
-		resp = webServer.transmitter.MakeRequest(currTransNum, "COMMIT_SELL," + username)
+		resp = webServer.transmitter.MakeRequest(currTransNum, "COMMIT_SELL,"+username)
 	}
 
 	if resp == "-1" {
@@ -289,7 +290,7 @@ func (webServer *WebServer) cancelSellHandler(writer http.ResponseWriter, reques
 		return
 	}
 
-	resp := webServer.transmitter.MakeRequest(currTransNum, "CANCEL_SELL," + username)
+	resp := webServer.transmitter.MakeRequest(currTransNum, "CANCEL_SELL,"+username)
 
 	if resp == "-1" {
 		webServer.logger.SystemError(webServer.Name, currTransNum, "CANCEL_SELL",
@@ -310,7 +311,7 @@ func (webServer *WebServer) setBuyAmountHandler(writer http.ResponseWriter, requ
 	webServer.logger.UserCommand(webServer.Name, currTransNum, "SET_BUY_AMOUNT",
 		username, stock, nil, amount)
 
-	resp := webServer.transmitter.MakeRequest(currTransNum, "SET_BUY_AMOUNT," + username + "," + stock + "," + amount)
+	resp := webServer.transmitter.MakeRequest(currTransNum, "SET_BUY_AMOUNT,"+username+","+stock+","+amount)
 
 	if resp == "-1" {
 		webServer.logger.SystemError(webServer.Name, currTransNum, "SET_BUY_AMOUNT",
@@ -328,7 +329,7 @@ func (webServer *WebServer) cancelSetBuyHandler(writer http.ResponseWriter, requ
 	webServer.logger.UserCommand(webServer.Name, currTransNum, "CANCEL_SET_BUY",
 		username, stock, nil, nil)
 
-	resp := webServer.transmitter.MakeRequest(currTransNum, "CANCEL_SET_BUY," + username + "," + stock)
+	resp := webServer.transmitter.MakeRequest(currTransNum, "CANCEL_SET_BUY,"+username+","+stock)
 
 	if resp == "-1" {
 		webServer.logger.SystemError(webServer.Name, currTransNum, "CANCEL_SET_BUY",
@@ -347,7 +348,7 @@ func (webServer *WebServer) setBuyTriggerHandler(writer http.ResponseWriter, req
 	webServer.logger.UserCommand(webServer.Name, currTransNum, "SET_BUY_TRIGGER",
 		username, stock, nil, amount)
 
-	resp := webServer.transmitter.MakeRequest(currTransNum, "SET_BUY_TRIGGER," + username + "," + stock + "," + amount)
+	resp := webServer.transmitter.MakeRequest(currTransNum, "SET_BUY_TRIGGER,"+username+","+stock+","+amount)
 
 	if resp == "-1" {
 		webServer.logger.SystemError(webServer.Name, currTransNum, "SET_BUY_TRIGGER",
@@ -365,10 +366,10 @@ func (webServer *WebServer) setSellAmountHandler(writer http.ResponseWriter, req
 
 	fmt.Println("in set sell")
 
-	webServer.logger.UserCommand(webServer.Name, currTransNum, "SET_SELL_AMOUNT", 
+	webServer.logger.UserCommand(webServer.Name, currTransNum, "SET_SELL_AMOUNT",
 		username, stock, nil, amount)
 
-	resp := webServer.transmitter.MakeRequest(currTransNum, "SET_SELL_AMOUNT," + username + "," + stock + "," + amount)
+	resp := webServer.transmitter.MakeRequest(currTransNum, "SET_SELL_AMOUNT,"+username+","+stock+","+amount)
 
 	if resp == "-1" {
 		webServer.logger.SystemError(webServer.Name, currTransNum, "SET_SELL_AMOUNT",
@@ -387,7 +388,7 @@ func (webServer *WebServer) setSellTriggerHandler(writer http.ResponseWriter, re
 	webServer.logger.UserCommand(webServer.Name, currTransNum, "SET_SELL_TRIGGER",
 		username, stock, nil, amount)
 
-	resp := webServer.transmitter.MakeRequest(currTransNum, "SET_SELL_TRIGGER," + username + "," + stock + "," + amount)
+	resp := webServer.transmitter.MakeRequest(currTransNum, "SET_SELL_TRIGGER,"+username+","+stock+","+amount)
 	if resp == "-1" {
 		webServer.logger.SystemError(webServer.Name, currTransNum, "SET_SELL_TRIGGER",
 			username, stock, nil, amount, "Bad response from transactionserv")
@@ -404,8 +405,8 @@ func (webServer *WebServer) cancelSetSellHandler(writer http.ResponseWriter, req
 	webServer.logger.UserCommand(webServer.Name, currTransNum, "CANCEL_SET_SELL",
 		username, stock, nil, nil)
 
-	resp := webServer.transmitter.MakeRequest(currTransNum,"CANCEL_SET_SELL," + username + "," + stock)
-	if resp == "-1" {	
+	resp := webServer.transmitter.MakeRequest(currTransNum, "CANCEL_SET_SELL,"+username+","+stock)
+	if resp == "-1" {
 		webServer.logger.SystemError(webServer.Name, currTransNum, "CANCEL_SET_SELL",
 			username, stock, nil, nil, "Bad response from transactionserv")
 		http.Error(writer, "Invalid Request", 400)
@@ -445,9 +446,9 @@ func (webServer *WebServer) displaySummaryHandler(writer http.ResponseWriter, re
 	webServer.logger.UserCommand(webServer.Name, currTransNum, "DISPLAY_SUMMARY",
 		username, nil, nil, nil)
 
-	resp := webServer.transmitter.MakeRequest(currTransNum,"DISPLAY_SUMMARY," + username)
+	resp := webServer.transmitter.MakeRequest(currTransNum, "DISPLAY_SUMMARY,"+username)
 	if resp == "-1" {
-		webServer.logger.SystemError(webServer.Name, currTransNum, "DISPLAY_SUMMARY", 
+		webServer.logger.SystemError(webServer.Name, currTransNum, "DISPLAY_SUMMARY",
 			username, nil, nil, nil, "Bad response from transactionserv")
 		http.Error(writer, "Invalid Request", 400)
 		return
@@ -466,11 +467,7 @@ func main() {
 		Name:              "webserver",
 		transactionNumber: 0,
 		userSessions:      new(syncmap.Map),
-<<<<<<< HEAD
-		transmitter:       transmitter.NewTransmitter(os.Getenv("transaddr"), os.Getenv("transport")),>>>>>>> master
-=======
 		transmitter:       transmitter.NewTransmitter(os.Getenv("transaddr"), os.Getenv("transport")),
->>>>>>> master
 		logger:            logger.AuditLogger{Addr: auditAddr},
 		validPath:         regexp.MustCompile("^/(ADD|QUOTE|BUY|COMMIT_BUY|CANCEL_BUY|SELL|COMMIT_SELL|CANCEL_SELL|SET_BUY_AMOUNT|CANCEL_SET_BUY|SET_BUY_TRIGGER|SET_SELL_AMOUNT|SET_SELL_TRIGGER|CANCEL_SET_SELL|DUMPLOG|DISPLAY_SUMMARY|LOGIN)/$"),
 	}
