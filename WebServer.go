@@ -5,13 +5,13 @@ import (
 	"net/http"
 	"os"
 	"regexp"
-	"./Commands"
+	"seng468/WebServer/Commands"
 	"sync/atomic"
 	"golang.org/x/sync/syncmap"
 
-	"./UserSessions"
-	"./logger"
-	"./transmitter"
+	"seng468/WebServer/UserSessions"
+	"seng468/WebServer/logger"
+	"seng468/WebServer/transmitter"
 )
 
 type WebServer struct {
@@ -466,7 +466,11 @@ func main() {
 		Name:              "webserver",
 		transactionNumber: 0,
 		userSessions:      new(syncmap.Map),
+<<<<<<< HEAD
 		transmitter:       transmitter.NewTransmitter(os.Getenv("transaddr"), os.Getenv("transport")),>>>>>>> master
+=======
+		transmitter:       transmitter.NewTransmitter(os.Getenv("transaddr"), os.Getenv("transport")),
+>>>>>>> master
 		logger:            logger.AuditLogger{Addr: auditAddr},
 		validPath:         regexp.MustCompile("^/(ADD|QUOTE|BUY|COMMIT_BUY|CANCEL_BUY|SELL|COMMIT_SELL|CANCEL_SELL|SET_BUY_AMOUNT|CANCEL_SET_BUY|SET_BUY_TRIGGER|SET_SELL_AMOUNT|SET_SELL_TRIGGER|CANCEL_SET_SELL|DUMPLOG|DISPLAY_SUMMARY|LOGIN)/$"),
 	}
