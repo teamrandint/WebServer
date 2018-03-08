@@ -18,6 +18,10 @@ ARG auditaddr
 ENV auditaddr=$auditaddr
 ARG auditport
 ENV auditport=$auditport
+ARG transaddr
+ENV transaddr=$transaddr
+ARG transport
+ENV transport=$transport
 
 WORKDIR /app
 COPY --from=build-env /go/src/seng468/WebServer/webserve /app/
