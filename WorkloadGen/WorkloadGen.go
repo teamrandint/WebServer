@@ -132,11 +132,13 @@ func parseCommand(cmd string) (endpoint string, v url.Values) {
 func countTPS() {
 	var tpsStart uint64
 	var tpsEnd uint64
+	elapsedtime := 0
 	for {
 		tpsStart = transcount
 		time.Sleep(time.Second)
 		tpsEnd = transcount
 
-		fmt.Printf("Running at %d TPS\n", tpsEnd-tpsStart)
+		fmt.Printf("%d Running at %d TPS\n", elapsedtime, tpsEnd-tpsStart)
+		elapsedtime++
 	}
 }
