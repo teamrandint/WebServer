@@ -23,14 +23,14 @@ func NewTransmitter(addr string, prt string) *Transmitter {
 	transmitter := new(Transmitter)
 	transmitter.address = addr
 	transmitter.port = prt
-  
+
 	// Create a connection to the specified server
 	var conn net.Conn
 	var err error
 	for err != nil {
 		conn, err = net.Dial("tcp", addr+":"+prt)
 		time.Sleep(time.Millisecond * 30)
-		log.Fatal(err)
+		log.Print(err)
 	}
 
 	transmitter.connection = conn
@@ -38,7 +38,7 @@ func NewTransmitter(addr string, prt string) *Transmitter {
 	return transmitter
 }
 
-func (trans *Transmitter) MakeRequest(transNum int,message string) string {
+func (trans *Transmitter) MakeRequest(transNum int, message string) string {
 	prefix := strconv.Itoa(transNum)
 	message = prefix + ";" + message
 	message += "\n"
@@ -46,7 +46,8 @@ func (trans *Transmitter) MakeRequest(transNum int,message string) string {
 
 	if err != nil {
 		// Error in connection
-		log.Fatal(err)
+		log.Print(err)
+		return "-1"
 	} else {
 		trans.connection = conn
 	}

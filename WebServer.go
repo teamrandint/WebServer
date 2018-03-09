@@ -29,10 +29,9 @@ func (webServer *WebServer) makeHandler(fn func(http.ResponseWriter, *http.Reque
 		m := webServer.validPath.FindStringSubmatch(request.URL.Path)
 		if m == nil {
 			http.NotFound(writer, request)
-			panic(request)
-			return
+		} else {
+			fn(writer, request, m[1])
 		}
-		fn(writer, request, m[1])
 	}
 }
 
@@ -42,6 +41,7 @@ func (webServer *WebServer) loginHandler(writer http.ResponseWriter, request *ht
 	if _, ok := webServer.userSessions.Load(userName); !ok {
 		webServer.userSessions.Store(userName, usersessions.NewUserSession(userName))
 	}
+	writer.WriteHeader(http.StatusOK)
 }
 
 func (webServer *WebServer) addHandler(writer http.ResponseWriter, request *http.Request, title string) {
@@ -58,6 +58,7 @@ func (webServer *WebServer) addHandler(writer http.ResponseWriter, request *http
 		http.Error(writer, "Invalid Request", 400)
 		return
 	}
+	writer.WriteHeader(http.StatusOK)
 }
 
 func (webServer *WebServer) quoteHandler(writer http.ResponseWriter, request *http.Request, title string) {
@@ -76,6 +77,7 @@ func (webServer *WebServer) quoteHandler(writer http.ResponseWriter, request *ht
 		http.Error(writer, "Invalid Request", 400)
 		return
 	}
+	writer.WriteHeader(http.StatusOK)
 }
 
 func (webServer *WebServer) buyHandler(writer http.ResponseWriter, request *http.Request, title string) {
@@ -107,6 +109,7 @@ func (webServer *WebServer) buyHandler(writer http.ResponseWriter, request *http
 
 	// Append buy to pendingBuys list
 	userSession.PendingBuys = append(userSession.PendingBuys, command)
+	writer.WriteHeader(http.StatusOK)
 }
 
 func (webServer *WebServer) commitBuyHandler(writer http.ResponseWriter, request *http.Request, title string) {
@@ -154,6 +157,7 @@ func (webServer *WebServer) commitBuyHandler(writer http.ResponseWriter, request
 	}
 	// Pop last sell off the pending list.
 	userSession.PendingBuys = userSession.PendingBuys[1:]
+	writer.WriteHeader(http.StatusOK)
 }
 
 func (webServer *WebServer) cancelBuyHandler(writer http.ResponseWriter, request *http.Request, title string) {
@@ -189,6 +193,7 @@ func (webServer *WebServer) cancelBuyHandler(writer http.ResponseWriter, request
 	}
 	// Pop last sell off the pending list.
 	userSession.PendingBuys = userSession.PendingBuys[1:]
+	writer.WriteHeader(http.StatusOK)
 }
 
 func (webServer *WebServer) sellHandler(writer http.ResponseWriter, request *http.Request, title string) {
@@ -218,6 +223,7 @@ func (webServer *WebServer) sellHandler(writer http.ResponseWriter, request *htt
 	}
 
 	userSession.PendingSells = append(userSession.PendingSells, command)
+	writer.WriteHeader(http.StatusOK)
 }
 
 func (webServer *WebServer) commitSellHandler(writer http.ResponseWriter, request *http.Request, title string) {
@@ -266,6 +272,7 @@ func (webServer *WebServer) commitSellHandler(writer http.ResponseWriter, reques
 	}
 	// Pop last sell off the pending list.
 	userSession.PendingSells = userSession.PendingSells[1:]
+	writer.WriteHeader(http.StatusOK)
 }
 
 func (webServer *WebServer) cancelSellHandler(writer http.ResponseWriter, request *http.Request, title string) {
@@ -300,6 +307,7 @@ func (webServer *WebServer) cancelSellHandler(writer http.ResponseWriter, reques
 	}
 	// Pop last sell off the pending list.
 	userSession.PendingSells = userSession.PendingSells[1:]
+	writer.WriteHeader(http.StatusOK)
 }
 
 func (webServer *WebServer) setBuyAmountHandler(writer http.ResponseWriter, request *http.Request, title string) {
@@ -319,6 +327,7 @@ func (webServer *WebServer) setBuyAmountHandler(writer http.ResponseWriter, requ
 		http.Error(writer, "Invalid Request", 400)
 		return
 	}
+	writer.WriteHeader(http.StatusOK)
 }
 
 func (webServer *WebServer) cancelSetBuyHandler(writer http.ResponseWriter, request *http.Request, title string) {
@@ -337,6 +346,7 @@ func (webServer *WebServer) cancelSetBuyHandler(writer http.ResponseWriter, requ
 		http.Error(writer, "Invalid Request", 400)
 		return
 	}
+	writer.WriteHeader(http.StatusOK)
 }
 
 func (webServer *WebServer) setBuyTriggerHandler(writer http.ResponseWriter, request *http.Request, title string) {
@@ -356,6 +366,7 @@ func (webServer *WebServer) setBuyTriggerHandler(writer http.ResponseWriter, req
 		http.Error(writer, "Invalid Request", 400)
 		return
 	}
+	writer.WriteHeader(http.StatusOK)
 }
 
 func (webServer *WebServer) setSellAmountHandler(writer http.ResponseWriter, request *http.Request, title string) {
@@ -377,6 +388,7 @@ func (webServer *WebServer) setSellAmountHandler(writer http.ResponseWriter, req
 		http.Error(writer, "Invalid Request", 400)
 		return
 	}
+	writer.WriteHeader(http.StatusOK)
 }
 
 func (webServer *WebServer) setSellTriggerHandler(writer http.ResponseWriter, request *http.Request, title string) {
@@ -395,6 +407,7 @@ func (webServer *WebServer) setSellTriggerHandler(writer http.ResponseWriter, re
 		http.Error(writer, "Invalid Request", 400)
 		return
 	}
+	writer.WriteHeader(http.StatusOK)
 }
 
 func (webServer *WebServer) cancelSetSellHandler(writer http.ResponseWriter, request *http.Request, title string) {
@@ -412,6 +425,7 @@ func (webServer *WebServer) cancelSetSellHandler(writer http.ResponseWriter, req
 		http.Error(writer, "Invalid Request", 400)
 		return
 	}
+	writer.WriteHeader(http.StatusOK)
 }
 
 func (webServer *WebServer) dumplogHandler(writer http.ResponseWriter, request *http.Request, title string) {
@@ -437,6 +451,7 @@ func (webServer *WebServer) dumplogHandler(writer http.ResponseWriter, request *
 		http.Error(writer, "Invalid Request", 400)
 		return
 	}
+	writer.WriteHeader(http.StatusOK)
 }
 
 func (webServer *WebServer) displaySummaryHandler(writer http.ResponseWriter, request *http.Request, title string) {
@@ -453,6 +468,7 @@ func (webServer *WebServer) displaySummaryHandler(writer http.ResponseWriter, re
 		http.Error(writer, "Invalid Request", 400)
 		return
 	}
+	writer.WriteHeader(http.StatusOK)
 }
 
 func (webServer *WebServer) genericHandler(writer http.ResponseWriter, request *http.Request, title string) {
@@ -492,5 +508,5 @@ func main() {
 	http.HandleFunc("/LOGIN/", webServer.makeHandler(webServer.loginHandler))
 
 	fmt.Printf("Successfully started server on %s\n", serverAddress)
-	http.ListenAndServe(serverAddress, nil)
+	panic(http.ListenAndServe(":"+os.Getenv("webport"), nil))
 }
