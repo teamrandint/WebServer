@@ -41,7 +41,6 @@ func (webServer *WebServer) loginHandler(writer http.ResponseWriter, request *ht
 	if _, ok := webServer.userSessions.Load(userName); !ok {
 		webServer.userSessions.Store(userName, usersessions.NewUserSession(userName))
 	}
-	writer.WriteHeader(http.StatusOK)
 }
 
 func (webServer *WebServer) addHandler(writer http.ResponseWriter, request *http.Request, title string) {
@@ -58,7 +57,6 @@ func (webServer *WebServer) addHandler(writer http.ResponseWriter, request *http
 		http.Error(writer, "Invalid Request", 400)
 		return
 	}
-	writer.WriteHeader(http.StatusOK)
 }
 
 func (webServer *WebServer) quoteHandler(writer http.ResponseWriter, request *http.Request, title string) {
@@ -77,7 +75,6 @@ func (webServer *WebServer) quoteHandler(writer http.ResponseWriter, request *ht
 		http.Error(writer, "Invalid Request", 400)
 		return
 	}
-	writer.WriteHeader(http.StatusOK)
 }
 
 func (webServer *WebServer) buyHandler(writer http.ResponseWriter, request *http.Request, title string) {
@@ -109,8 +106,7 @@ func (webServer *WebServer) buyHandler(writer http.ResponseWriter, request *http
 
 	// Append buy to pendingBuys list
 	userSession.PendingBuys = append(userSession.PendingBuys, command)
-	writer.WriteHeader(http.StatusOK)
-}
+ }
 
 func (webServer *WebServer) commitBuyHandler(writer http.ResponseWriter, request *http.Request, title string) {
 	currTransNum := int(atomic.AddInt64(&webServer.transactionNumber, 1))
@@ -157,7 +153,6 @@ func (webServer *WebServer) commitBuyHandler(writer http.ResponseWriter, request
 	}
 	// Pop last sell off the pending list.
 	userSession.PendingBuys = userSession.PendingBuys[1:]
-	writer.WriteHeader(http.StatusOK)
 }
 
 func (webServer *WebServer) cancelBuyHandler(writer http.ResponseWriter, request *http.Request, title string) {
@@ -193,7 +188,6 @@ func (webServer *WebServer) cancelBuyHandler(writer http.ResponseWriter, request
 	}
 	// Pop last sell off the pending list.
 	userSession.PendingBuys = userSession.PendingBuys[1:]
-	writer.WriteHeader(http.StatusOK)
 }
 
 func (webServer *WebServer) sellHandler(writer http.ResponseWriter, request *http.Request, title string) {
@@ -223,7 +217,6 @@ func (webServer *WebServer) sellHandler(writer http.ResponseWriter, request *htt
 	}
 
 	userSession.PendingSells = append(userSession.PendingSells, command)
-	writer.WriteHeader(http.StatusOK)
 }
 
 func (webServer *WebServer) commitSellHandler(writer http.ResponseWriter, request *http.Request, title string) {
@@ -272,7 +265,6 @@ func (webServer *WebServer) commitSellHandler(writer http.ResponseWriter, reques
 	}
 	// Pop last sell off the pending list.
 	userSession.PendingSells = userSession.PendingSells[1:]
-	writer.WriteHeader(http.StatusOK)
 }
 
 func (webServer *WebServer) cancelSellHandler(writer http.ResponseWriter, request *http.Request, title string) {
@@ -307,7 +299,6 @@ func (webServer *WebServer) cancelSellHandler(writer http.ResponseWriter, reques
 	}
 	// Pop last sell off the pending list.
 	userSession.PendingSells = userSession.PendingSells[1:]
-	writer.WriteHeader(http.StatusOK)
 }
 
 func (webServer *WebServer) setBuyAmountHandler(writer http.ResponseWriter, request *http.Request, title string) {
@@ -327,7 +318,6 @@ func (webServer *WebServer) setBuyAmountHandler(writer http.ResponseWriter, requ
 		http.Error(writer, "Invalid Request", 400)
 		return
 	}
-	writer.WriteHeader(http.StatusOK)
 }
 
 func (webServer *WebServer) cancelSetBuyHandler(writer http.ResponseWriter, request *http.Request, title string) {
@@ -346,7 +336,6 @@ func (webServer *WebServer) cancelSetBuyHandler(writer http.ResponseWriter, requ
 		http.Error(writer, "Invalid Request", 400)
 		return
 	}
-	writer.WriteHeader(http.StatusOK)
 }
 
 func (webServer *WebServer) setBuyTriggerHandler(writer http.ResponseWriter, request *http.Request, title string) {
@@ -366,7 +355,6 @@ func (webServer *WebServer) setBuyTriggerHandler(writer http.ResponseWriter, req
 		http.Error(writer, "Invalid Request", 400)
 		return
 	}
-	writer.WriteHeader(http.StatusOK)
 }
 
 func (webServer *WebServer) setSellAmountHandler(writer http.ResponseWriter, request *http.Request, title string) {
@@ -374,8 +362,6 @@ func (webServer *WebServer) setSellAmountHandler(writer http.ResponseWriter, req
 	username := request.FormValue("username")
 	stock := request.FormValue("stock")
 	amount := request.FormValue("amount")
-
-	fmt.Println("in set sell")
 
 	webServer.logger.UserCommand(webServer.Name, currTransNum, "SET_SELL_AMOUNT",
 		username, stock, nil, amount)
@@ -388,7 +374,6 @@ func (webServer *WebServer) setSellAmountHandler(writer http.ResponseWriter, req
 		http.Error(writer, "Invalid Request", 400)
 		return
 	}
-	writer.WriteHeader(http.StatusOK)
 }
 
 func (webServer *WebServer) setSellTriggerHandler(writer http.ResponseWriter, request *http.Request, title string) {
@@ -407,7 +392,6 @@ func (webServer *WebServer) setSellTriggerHandler(writer http.ResponseWriter, re
 		http.Error(writer, "Invalid Request", 400)
 		return
 	}
-	writer.WriteHeader(http.StatusOK)
 }
 
 func (webServer *WebServer) cancelSetSellHandler(writer http.ResponseWriter, request *http.Request, title string) {
@@ -425,7 +409,6 @@ func (webServer *WebServer) cancelSetSellHandler(writer http.ResponseWriter, req
 		http.Error(writer, "Invalid Request", 400)
 		return
 	}
-	writer.WriteHeader(http.StatusOK)
 }
 
 func (webServer *WebServer) dumplogHandler(writer http.ResponseWriter, request *http.Request, title string) {
@@ -451,7 +434,6 @@ func (webServer *WebServer) dumplogHandler(writer http.ResponseWriter, request *
 		http.Error(writer, "Invalid Request", 400)
 		return
 	}
-	writer.WriteHeader(http.StatusOK)
 }
 
 func (webServer *WebServer) displaySummaryHandler(writer http.ResponseWriter, request *http.Request, title string) {
@@ -468,7 +450,6 @@ func (webServer *WebServer) displaySummaryHandler(writer http.ResponseWriter, re
 		http.Error(writer, "Invalid Request", 400)
 		return
 	}
-	writer.WriteHeader(http.StatusOK)
 }
 
 func (webServer *WebServer) genericHandler(writer http.ResponseWriter, request *http.Request, title string) {

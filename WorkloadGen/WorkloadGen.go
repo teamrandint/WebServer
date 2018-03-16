@@ -53,9 +53,9 @@ func runRequests(serverAddr string, users map[string][]string, delay int) {
 				resp, err := http.PostForm("http://"+serverAddr+"/"+endpoint+"/", values)
 				if err != nil {
 					fmt.Println(err)
+				} else {
+					resp.Body.Close()
 				}
-
-				resp.Body.Close()
 			}
 
 			wg.Done()
